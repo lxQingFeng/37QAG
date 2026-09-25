@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>健康状态报告</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    width:900px;
+    font-family:"Microsoft YaHei","PingFang SC","Hiragino Sans GB","Segoe UI",system-ui,sans-serif;
+    background:#eef1f7; color:#1f2430; padding:18px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .card { background:#fff; border-radius:14px; padding:16px 18px; margin-bottom:12px;
+          box-shadow:0 1px 3px rgba(24,39,75,.07), 0 6px 18px rgba(24,39,75,.05); }
+  .hd { background:linear-gradient(120deg,#2f6fed 0%,#5b8cf7 55%,#7aa8ff 100%); color:#fff; border-radius:16px;
+        padding:20px 22px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; }
+  .hd h1 { font-size:26px; font-weight:700; letter-spacing:.5px; }
+  .hd-sub { font-size:13px; opacity:.92; margin-top:7px; line-height:1.6; }
+  .hd .badge { text-align:right; font-size:13px; opacity:.95; line-height:1.7; }
+  .hd .badge b { display:block; font-size:22px; font-weight:700; }
+  .kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:12px; }
+  .kpi { background:#fff; border-radius:14px; padding:14px 16px; box-shadow:0 1px 3px rgba(24,39,75,.07); }
+  .kpi-l { font-size:12px; color:#8a94a6; }
+  .kpi-v { font-size:30px; font-weight:700; line-height:1.25; margin-top:2px; }
+  .kpi-u { font-size:13px; font-weight:400; color:#8a94a6; margin-left:2px; }
+  .kpi-s { font-size:12px; color:#6b7280; margin-top:2px; }
+  .sec-t { font-size:15px; font-weight:700; margin-bottom:12px; display:flex; align-items:center; gap:7px; }
+  .sec-t::before { content:""; width:4px; height:15px; border-radius:2px; background:#2f6fed; }
+  .sts { display:grid; grid-template-columns:1fr 1fr; gap:7px 22px; }
+  .st { display:grid; grid-template-columns:20px 62px 92px 1fr 34px; align-items:center; gap:6px; font-size:13px; }
+  .st-e { font-size:14px; }
+  .st-n { color:#3c4457; }
+  .st-t { font-size:11.5px; color:#8a94a6; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+  .st-badhigh .st-t { color:#c06a2a; }
+  .st-bar { height:8px; background:#eceff5; border-radius:5px; overflow:hidden; }
+  .st-bar i { display:block; height:100%; border-radius:5px; }
+  .st-v { text-align:right; font-weight:700; font-size:13px; }
+  .subs { display:grid; grid-template-columns:repeat(6,1fr); gap:10px; }
+  .sub { background:#f7f9fd; border-radius:10px; padding:10px; }
+  .sub-h { font-size:12px; color:#5b6478; display:flex; align-items:center; gap:4px; }
+  .sub-v { font-size:22px; font-weight:700; margin:3px 0 5px; }
+  .sub-bar { height:6px; background:#e4e9f2; border-radius:4px; overflow:hidden; }
+  .sub-bar i { display:block; height:100%; border-radius:4px; }
+  .alarm { background:#fff7f0; border:1px solid #ffd9b8; border-radius:12px; padding:12px 14px; }
+  .alarm b { font-size:13px; color:#a3541a; }
+  .alarm-list { display:flex; flex-wrap:wrap; gap:7px; margin-top:9px; }
+  .calm { color:#1f9d63; font-size:13px; background:#f2fbf6; border-radius:10px; padding:10px 14px; }
+  .chip { font-size:12px; padding:4px 9px; border-radius:999px; background:#f5f7fb;
+          border:1px solid #e2e7f0; color:#4a5365; display:inline-block; }
+  .chip i { font-style:normal; color:#8a94a6; }
+  .chip-warn { background:#fff8f1; border-color:#ffdcbb; color:#a3541a; }
+  .chip-bad { background:#fff2f2; border-color:#ffc9cb; color:#b3282e; }
+  .dis { border:1px solid #e8ecf4; border-radius:12px; padding:11px 13px; margin-bottom:9px; background:#fcfdff; }
+  .dis-h { display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:14px; }
+  .dis-e { font-size:16px; }
+  .dis-s { font-size:12.5px; color:#6b7280; margin-top:6px; line-height:1.55; }
+  .tag { font-size:11.5px; padding:2px 8px; border-radius:999px; background:#eef2f9;
+         color:#5b6478; border:1px solid #e2e7f0; }
+  .tag-ok { background:#eefaf3; color:#1f9d63; border-color:#c9efdb; }
+  .tag-chron { background:#f6f1ff; color:#7550c9; border-color:#e2d8fb; }
+  .orgs { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+  .org { background:#f7f9fd; border-radius:10px; padding:9px 11px; }
+  .org-n { font-size:12.5px; color:#3c4457; }
+  .org-bar { height:6px; background:#e4e9f2; border-radius:4px; overflow:hidden; margin:6px 0 5px; }
+  .org-bar i { display:block; height:100%; border-radius:4px; }
+  .org-l { font-size:11.5px; font-weight:600; }
+  .minis { display:flex; flex-wrap:wrap; gap:7px; }
+  .mini { font-size:12px; background:#f5f7fb; border:1px solid #e6ebf4; border-radius:8px;
+          padding:4px 9px; color:#4a5365; }
+  .mini b { font-weight:700; margin-right:3px; }
+  .mini i { font-style:normal; color:#8a94a6; margin-left:4px; }
+  .lines { font-size:12.5px; color:#4a5365; line-height:2; }
+  .vital-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:11px; }
+  .vital-group { background:#f7f9fd; border-radius:10px; padding:10px 11px; }
+  .vital-gh { font-size:12px; color:#5b6478; font-weight:700; margin-bottom:7px; display:flex; align-items:center; gap:5px; }
+  .vital-gh i { font-style:normal; font-weight:400; color:#9aa3b2; margin-left:auto; }
+  .vital-items { display:flex; flex-wrap:wrap; gap:5px; }
+  .vital-chip { font-size:11.5px; padding:3px 8px; border-radius:8px; background:#fff;
+                border:1px solid #e2e7f0; color:#4a5365; display:inline-block; }
+  .vital-chip b { margin:0 2px; font-weight:700; }
+  .vital-chip i { font-style:normal; color:#8a94a6; }
+  .ft { text-align:center; font-size:11.5px; color:#9aa3b2; padding:6px 0 2px; }
+</style></head>
+<body>
+  <div class="hd">
+    <div>
+      <h1>🩺 健康状态报告</h1>
+      <div class="hd-sub">2026-09-26 10:30　·　🎂 23 岁　·　⚖️平和质　·　⛅多云 18℃ 湿度62% 🟡AQI55(良) 紫外线中等</div>
+    </div>
+    <div class="badge">
+      <b>100 / 100</b>
+      良好
+    </div>
+  </div>
+
+  <div class="kpis">
+      <div class="kpi">
+        <div class="kpi-l">健康值</div>
+        <div class="kpi-v" style="color:#1f9d63">100<span class="kpi-u">/100</span></div>
+        <div class="kpi-s">良好</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-l">疾病</div>
+        <div class="kpi-v" style="color:#d93a41">3<span class="kpi-u">项</span></div>
+        <div class="kpi-s">正在发作</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-l">抵抗力</div>
+        <div class="kpi-v" style="color:#1f9d63">100<span class="kpi-u">/100</span></div>
+        <div class="kpi-s">良好</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-l">检验评分</div>
+        <div class="kpi-v" style="color:#2f6fed">62<span class="kpi-u">/100</span></div>
+        <div class="kpi-s">多项异常</div>
+      </div></div>
+
+  <div class="card">
+    <div class="sec-t">🕰️ 昼夜节律 &amp; 🧬 生物年龄</div>
+    <div class="lines" style="line-height:1.95">☀️上午高峰（生理效能 ×1.15）　⚡精力曲线 89　👁️警觉度 90　🧪皮质醇 62　🌙褪黑素 0<br>😴 建议睡眠窗口 23:00 - 07:00</div>
+    <div style="display:flex;align-items:baseline;gap:10px;margin:12px 0 9px;flex-wrap:wrap">
+      <span style="font-size:13px;color:#8a94a6">实际 23 岁 → 生理年龄</span>
+      <b style="font-size:27px;color:#d93a41">28.5</b>
+      <span style="font-size:13px;color:#d93a41;font-weight:600">+5.5 岁 · 略有透支</span>
+    </div>
+    <div class="minis"><span class="mini"><b style="color:#d93a41">+2.45</b> 🏃生活方式</span><span class="mini"><b style="color:#d93a41">+2.08</b> 🩸代谢指标</span><span class="mini"><b style="color:#d93a41">+0.68</b> 🧠心理状态</span><span class="mini"><b style="color:#d93a41">+0.6</b> 🤧过敏炎症</span><span class="mini"><b style="color:#1f9d63">-0.45</b> 🫀器官健康</span><span class="mini"><b style="color:#8a94a6">+0.26</b> 🥗营养均衡</span></div>
+  </div>
+
+  <div class="card">
+    <div class="sec-t">📊 状态总览（24 项）</div>
+    <div class="sts">
+        <div class="st">
+          <span class="st-e">💧</span>
+          <span class="st-n">口渴度</span>
+          <span class="st-t">水润</span>
+          <span class="st-bar"><i style="width:100%;background:#1f9d63"></i></span>
+          <span class="st-v" style="color:#1f9d63">100</span>
+        </div>
+        <div class="st">
+          <span class="st-e">🍚</span>
+          <span class="st-n">饱食度</span>
+          <span class="st-t">饱足</span>
+          <span class="st-bar"><i style="width:100%;background:#1f9d63"></i></span>
+          <span class="st-v" style="color:#1f9d63">100</span>
+        </div>
+        <div class="st">
+          <span class="st-e">⚡</span>
+          <span class="st-n">精力值</span>
+          <span class="st-t">精力充沛</span>
+          <span class="st-bar"><i style="width:100%;background:#1f9d63"></i></span>
+          <span class="st-v" style="color:#1f9d63">100</span>
+        </div>
+        <div class="st">
+          <span class="st-e">❤️</span>
+          <span class="st-n">健康值</span>
+          <span class="st-t">康健</span>
+          <span class="st-bar"><i style="width:100%;background:#1f9d63"></i></span>
+          <span class="st-v" style="color:#1f9d63">100</span>
+        </div>
+        <div class="st">
+          <span class="st-e">😴</span>
+          <span class="st-n">睡眠需求</span>
+          <span class="st-t">清醒</span>
+          <span class="st-bar"><i style="width:100%;background:#1f9d63"></i></span>
+          <span class="st-v" style="color:#1f9d63">100</span>
+        </div>
+        <div class="st">
+          <span class="st-e">😪</span>
+          <span class="st-n">疲劳度</span>
+          <span class="st-t">神清气爽</span>
+          <span class="st-bar"><i style="width:100%;background:#1f9d63"></i></span>
+          <span class="st-v" style="color:#1f9d63">100</span>
+        </div>
+        <div class="st">
+          <span class="st-e">🧬</span>
+          <span class="st-n">抵抗力</span>
+          <span class="st-t">良好</span>
+          <span class="st-bar"><i style="width:100%;background:#1f9d63"></i></span>
+          <span class="st-v" style="color:#1f9d63">100</span>
+        </div>
+        <div class="st st-badhigh">
+          <span class="st-e">😵</span>
+          <span class="st-n">睡眠负债</span>
+          <span class="st-t">一般</span>
+          <span class="st-bar"><i style="width:55%;background:#d9821f"></i></span>
+          <span class="st-v" style="color:#d9821f">55</span>
+        </div>
+        <div class="st">
+          <span class="st-e">😊</span>
+          <span class="st-n">心情值</span>
+          <span class="st-t">愉悦</span>
+          <span class="st-bar"><i style="width:100%;background:#1f9d63"></i></span>
+          <span class="st-v" style="color:#1f9d63">100</span>
+        </div>
+        <div class="st">
+          <span class="st-e">😰</span>
+          <span class="st-n">压力值</span>
+          <span class="st-t">压力山大</span>
+          <span class="st-bar"><i style="width:22%;background:#d93a41"></i></span>
+          <span class="st-v" style="color:#d93a41">22</span>
+        </div>
+        <div class="st">
+          <span class="st-e">🎯</span>
+          <span class="st-n">满足感</span>
+          <span class="st-t">非常满足</span>
+          <span class="st-bar"><i style="width:100%;background:#1f9d63"></i></span>
+          <span class="st-v" style="color:#1f9d63">100</span>
+        </div>
+        <div class="st">
+          <span class="st-e">🧘</span>
+          <span class="st-n">情绪稳定</span>
+          <span class="st-t">良好</span>
+          <span class="st-bar"><i style="width:100%;background:#1f9d63"></i></span>
+          <span class="st-v" style="color:#1f9d63">100</span>
+        </div>
+        <div class="st">
+          <span class="st-e">🎯</span>
+          <span class="st-n">专注力</span>
+          <span class="st-t">良好</span>
+          <span class="st-bar"><i style="width:100%;background:#1f9d63"></i></span>
+          <span class="st-v" style="color:#1f9d63">100</span>
+        </div>
+        <div class="st">
+          <span class="st-e">🔍</span>
+          <span class="st-n">求知欲</span>
+          <span class="st-t">良好</span>
+          <span class="st-bar"><i style="width:100%;background:#1f9d63"></i></span>
+          <span class="st-v" style="color:#1f9d63">100</span>
+        </div>
+        <div class="st">
+          <span class="st-e">💗</span>
+          <span class="st-n">同理心</span>
+          <span class="st-t">良好</span>
+          <span class="st-bar"><i style="width:100%;background:#1f9d63"></i></span>
+          <span class="st-v" style="color:#1f9d63">100</span>
+        </div>
+        <div class="st st-badhigh">
+          <span class="st-e">😟</span>
+          <span class="st-n">焦虑度</span>
+          <span class="st-t">一般</span>
+          <span class="st-bar"><i style="width:58%;background:#d9821f"></i></span>
+          <span class="st-v" style="color:#d9821f">58</span>
+        </div>
+        <div class="st st-badhigh">
+          <span class="st-e">🌧️</span>
+          <span class="st-n">抑郁度</span>
+          <span class="st-t">良好</span>
+          <span class="st-bar"><i style="width:0%;background:#1f9d63"></i></span>
+          <span class="st-v" style="color:#1f9d63">0</span>
+        </div>
+        <div class="st st-badhigh">
+          <span class="st-e">🎮</span>
+          <span class="st-n">成瘾度</span>
+          <span class="st-t">良好</span>
+          <span class="st-bar"><i style="width:0%;background:#1f9d63"></i></span>
+          <span class="st-v" style="color:#1f9d63">0</span>
+        </div>
+        <div class="st st-badhigh">
+          <span class="st-e">🤒</span>
+          <span class="st-n">发烧度</span>
+          <span class="st-t">良好</span>
+          <span class="st-bar"><i style="width:0%;background:#1f9d63"></i></span>
+          <span class="st-v" style="color:#1f9d63">0</span>
+        </div>
+        <div class="st">
+          <span class="st-e">🥺</span>
+          <span class="st-n">孤独感</span>
+          <span class="st-t">充实</span>
+          <span class="st-bar"><i style="width:100%;background:#1f9d63"></i></span>
+          <span class="st-v" style="color:#1f9d63">100</span>
+        </div>
+        <div class="st">
+          <span class="st-e">🤝</span>
+          <span class="st-n">社交需求</span>
+          <span class="st-t">不想社交</span>
+          <span class="st-bar"><i style="width:100%;background:#1f9d63"></i></span>
+          <span class="st-v" style="color:#1f9d63">100</span>
+        </div>
+        <div class="st">
+          <span class="st-e">🏠</span>
+          <span class="st-n">归属感</span>
+          <span class="st-t">归属感强</span>
+          <span class="st-bar"><i style="width:100%;background:#1f9d63"></i></span>
+          <span class="st-v" style="color:#1f9d63">100</span>
+        </div>
+        <div class="st">
+          <span class="st-e">🛡️</span>
+          <span class="st-n">安全感</span>
+          <span class="st-t">良好</span>
+          <span class="st-bar"><i style="width:100%;background:#1f9d63"></i></span>
+          <span class="st-v" style="color:#1f9d63">100</span>
+        </div>
+        <div class="st">
+          <span class="st-e">🛋️</span>
+          <span class="st-n">舒适度</span>
+          <span class="st-t">惬意</span>
+          <span class="st-bar"><i style="width:100%;background:#1f9d63"></i></span>
+          <span class="st-v" style="color:#1f9d63">100</span>
+        </div></div>
+  </div>
+
+  <div class="card">
+    <div class="sec-t">🌊 深层生理</div>
+    <div class="subs">
+        <div class="sub">
+          <div class="sub-h"><span>🧂</span>电解质</div>
+          <div class="sub-v" style="color:#1f9d63">75</div>
+          <div class="sub-bar"><i style="width:75%;background:#1f9d63"></i></div>
+        </div>
+        <div class="sub">
+          <div class="sub-h"><span>🍔</span>热量盈余</div>
+          <div class="sub-v" style="color:#1f9d63">20</div>
+          <div class="sub-bar"><i style="width:20%;background:#1f9d63"></i></div>
+        </div>
+        <div class="sub">
+          <div class="sub-h"><span>🧠</span>精神疲劳</div>
+          <div class="sub-v" style="color:#1f9d63">20</div>
+          <div class="sub-bar"><i style="width:20%;background:#1f9d63"></i></div>
+        </div>
+        <div class="sub">
+          <div class="sub-h"><span>💞</span>亲密需求</div>
+          <div class="sub-v" style="color:#2f6fed">70</div>
+          <div class="sub-bar"><i style="width:70%;background:#2f6fed"></i></div>
+        </div>
+        <div class="sub">
+          <div class="sub-h"><span>🎢</span>情绪波动</div>
+          <div class="sub-v" style="color:#1f9d63">18</div>
+          <div class="sub-bar"><i style="width:18%;background:#1f9d63"></i></div>
+        </div>
+        <div class="sub">
+          <div class="sub-h"><span>🏋️</span>体力储备</div>
+          <div class="sub-v" style="color:#2f6fed">70</div>
+          <div class="sub-bar"><i style="width:70%;background:#2f6fed"></i></div>
+        </div></div>
+  </div>
+  <div class="card">
+    <div class="sec-t">🔗 连锁反应</div>
+    <div class="alarm"><b>🔗 正在发生的连锁反应 3 条</b><div class="alarm-list"><span class="chip chip-warn">😰压力值 → 😴睡眠需求　<i>压力大睡不踏实</i></span><span class="chip chip-warn">😰压力值 → 😊心情值　<i>长期压力磨损心情</i></span><span class="chip chip-warn">😰压力值 → 🧬抵抗力　<i>压力会抑制免疫</i></span></div></div>
+  </div>
+
+  <div class="card">
+    <div class="sec-t">🤒 当前疾病（3）</div>
+
+        <div class="dis">
+          <div class="dis-h">
+            <span class="dis-e">😰</span>
+            <b>焦虑症</b>
+            <span class="tag" style="background:#5b6b7f1a;color:#5b6b7f;border-color:#5b6b7f44">初期</span>
+            <span class="tag">⚙️功能失调</span>
+            <span class="tag">未确诊</span>
+            <span class="tag">受累：心脏</span>
+
+          </div>
+          <div class="dis-s">症状：紧张不安、心悸</div>
+        </div>
+        <div class="dis">
+          <div class="dis-h">
+            <span class="dis-e">🧈</span>
+            <b>高血脂</b>
+            <span class="tag" style="background:#5b6b7f1a;color:#5b6b7f;border-color:#5b6b7f44">初期</span>
+            <span class="tag">♻️慢性病灶</span>
+            <span class="tag">未确诊</span>
+            <span class="tag">受累：血液</span>
+            <span class="tag tag-chron">慢性</span>
+          </div>
+          <div class="dis-s">症状：血液黏稠、容易疲倦、无明显自觉症状</div>
+        </div>
+        <div class="dis">
+          <div class="dis-h">
+            <span class="dis-e">🩻</span>
+            <b>动脉硬化</b>
+            <span class="tag" style="background:#5b6b7f1a;color:#5b6b7f;border-color:#5b6b7f44">初期</span>
+            <span class="tag">♻️慢性病灶</span>
+            <span class="tag">未确诊</span>
+            <span class="tag">受累：心脏</span>
+            <span class="tag tag-chron">慢性</span>
+          </div>
+          <div class="dis-s">症状：头晕、胸闷、血管弹性下降</div>
+        </div>
+  </div>
+
+  <div class="card">
+    <div class="sec-t">🫀 器官健康</div>
+    <div class="orgs">
+        <div class="org">
+          <div class="org-n">❤️ 心脏</div>
+          <div class="org-bar"><i style="width:82%;background:#1f9d63"></i></div>
+          <div class="org-l" style="color:#1f9d63">良好 82</div>
+        </div>
+        <div class="org">
+          <div class="org-n">🫁 肺部</div>
+          <div class="org-bar"><i style="width:95%;background:#1f9d63"></i></div>
+          <div class="org-l" style="color:#1f9d63">良好 95</div>
+        </div>
+        <div class="org">
+          <div class="org-n">🫀 肝脏</div>
+          <div class="org-bar"><i style="width:78%;background:#1f9d63"></i></div>
+          <div class="org-l" style="color:#1f9d63">一般 78</div>
+        </div>
+        <div class="org">
+          <div class="org-n">🫃 肠胃</div>
+          <div class="org-bar"><i style="width:90%;background:#1f9d63"></i></div>
+          <div class="org-l" style="color:#1f9d63">良好 90</div>
+        </div>
+        <div class="org">
+          <div class="org-n">🫘 肾脏</div>
+          <div class="org-bar"><i style="width:62%;background:#2f6fed"></i></div>
+          <div class="org-l" style="color:#2f6fed">一般 62</div>
+        </div>
+        <div class="org">
+          <div class="org-n">🧠 大脑</div>
+          <div class="org-bar"><i style="width:88%;background:#1f9d63"></i></div>
+          <div class="org-l" style="color:#1f9d63">良好 88</div>
+        </div>
+        <div class="org">
+          <div class="org-n">🩹 皮肤</div>
+          <div class="org-bar"><i style="width:95%;background:#1f9d63"></i></div>
+          <div class="org-l" style="color:#1f9d63">良好 95</div>
+        </div>
+        <div class="org">
+          <div class="org-n">🩸 血液</div>
+          <div class="org-bar"><i style="width:90%;background:#1f9d63"></i></div>
+          <div class="org-l" style="color:#1f9d63">良好 90</div>
+        </div></div>
+  </div>
+
+  <div class="card">
+    <div class="sec-t">🩸 检验指标（综合评分 62/100）</div>
+    <div class="alarm-list" style="margin-bottom:10px"><span class="chip" style="color:#d9821f;border-color:#d9821f44">血压 159/95 mmHg</span><span class="chip" style="color:#1f9d63;border-color:#1f9d6344">心率 89 次/分</span><span class="chip" style="color:#1f9d63;border-color:#1f9d6344">体温 36.5 ℃</span><span class="chip" style="color:#d93a41;border-color:#d93a4144">血糖 14.16 mmol/L</span><span class="chip" style="color:#1f9d63;border-color:#1f9d6344">血红蛋白 128 g/L</span><span class="chip" style="color:#1f9d63;border-color:#1f9d6344">血氧 97.6 %</span></div>
+    <div class="alarm-list"><span class="chip chip-warn">⚠️ 收缩压 159mmHg　<i>偏高</i></span><span class="chip chip-warn">⚠️ 舒张压 95mmHg　<i>偏高</i></span><span class="chip chip-bad">🚨 空腹血糖 14.16mmol/L　<i>显著偏高</i></span><span class="chip chip-bad">🚨 糖化血红蛋白 13.29%　<i>显著偏高</i></span><span class="chip chip-warn">⚠️ 体质指数 26.4kg/m²　<i>偏高</i></span><span class="chip chip-warn">⚠️ 总胆固醇 5.72mmol/L　<i>偏高</i></span><span class="chip chip-warn">⚠️ 甘油三酯 4.45mmol/L　<i>偏高</i></span><span class="chip chip-warn">⚠️ 低密度脂蛋白 3.50mmol/L　<i>偏高</i></span><span class="chip chip-warn">⚠️ 谷丙转氨酶 42U/L　<i>偏高</i></span><span class="chip chip-warn">⚠️ 谷草转氨酶 38U/L　<i>偏高</i></span><span class="chip chip-warn">⚠️ 肌酐 164μmol/L　<i>偏高</i></span><span class="chip chip-warn">⚠️ 尿素氮 7.8mmol/L　<i>偏高</i></span><span class="chip chip-warn">⚠️ C反应蛋白 9.56mg/L　<i>偏高</i></span><span class="chip chip-warn">⚠️ 促甲状腺激素 4.79mIU/L　<i>偏高</i></span><span class="chip chip-warn">⚠️ 皮质醇 552.9nmol/L　<i>偏高</i></span><span class="chip chip-bad">🚨 空腹胰岛素 63.14μIU/mL　<i>显著偏高</i></span><span class="chip chip-warn">⚠️ 凝血酶原国际比值 1.25　<i>偏高</i></span><span class="chip chip-warn">⚠️ 尿蛋白 474mg/24h　<i>偏高</i></span><span class="chip chip-bad">🚨 尿糖 12.2mmol/L　<i>显著偏高</i></span></div>
+    <div class="vital-grid">
+      <div class="vital-group">
+        <div class="vital-gh">🧪 循环系统<i>4 项</i></div>
+        <div class="vital-items"><span class="vital-chip" style="color:#d9821f;border-color:#d9821f66">🩸收缩压 <b>159</b>mmHg<i>（参考 90~120）</i></span><span class="vital-chip" style="color:#d9821f;border-color:#d9821f66">🩸舒张压 <b>95</b>mmHg<i>（参考 60~80）</i></span><span class="vital-chip" style="color:#4a5365">💓心率 <b>89</b>次/分<i>（参考 60~100）</i></span><span class="vital-chip" style="color:#4a5365">🫁血氧饱和度 <b>97.6</b>%<i>（参考 95.0~100.0）</i></span></div>
+      </div>
+      <div class="vital-group">
+        <div class="vital-gh">🧪 呼吸系统<i>2 项</i></div>
+        <div class="vital-items"><span class="vital-chip" style="color:#4a5365">🌬️呼吸频率 <b>15</b>次/分<i>（参考 12~20）</i></span><span class="vital-chip" style="color:#4a5365">🌡️体温 <b>36.5</b>℃<i>（参考 36.0~37.2）</i></span></div>
+      </div>
+      <div class="vital-group">
+        <div class="vital-gh">🧪 代谢<i>4 项</i></div>
+        <div class="vital-items"><span class="vital-chip" style="color:#d93a41;border-color:#d93a4166">🍬空腹血糖 <b>14.16</b>mmol/L<i>（参考 3.90~6.10）</i></span><span class="vital-chip" style="color:#d93a41;border-color:#d93a4166">🩸糖化血红蛋白 <b>13.29</b>%<i>（参考 4.00~6.00）</i></span><span class="vital-chip" style="color:#d9821f;border-color:#d9821f66">⚖️体质指数 <b>26.4</b>kg/m²<i>（参考 18.5~24.0）</i></span><span class="vital-chip" style="color:#d9821f;border-color:#d9821f66">🏋️体重 <b>78.0</b>kg<i>（参考 45.0~68.0）</i></span></div>
+      </div>
+      <div class="vital-group">
+        <div class="vital-gh">🧪 血脂<i>4 项</i></div>
+        <div class="vital-items"><span class="vital-chip" style="color:#d9821f;border-color:#d9821f66">🧈总胆固醇 <b>5.72</b>mmol/L<i>（参考 2.80~5.20）</i></span><span class="vital-chip" style="color:#d9821f;border-color:#d9821f66">🧈甘油三酯 <b>4.45</b>mmol/L<i>（参考 0.40~1.70）</i></span><span class="vital-chip" style="color:#4a5365">🛡️高密度脂蛋白 <b>1.13</b>mmol/L<i>（参考 1.00~2.00）</i></span><span class="vital-chip" style="color:#d9821f;border-color:#d9821f66">⚠️低密度脂蛋白 <b>3.50</b>mmol/L<i>（参考 1.50~3.40）</i></span></div>
+      </div>
+      <div class="vital-group">
+        <div class="vital-gh">🧪 血常规<i>3 项</i></div>
+        <div class="vital-items"><span class="vital-chip" style="color:#4a5365">🩸血红蛋白 <b>128</b>g/L<i>（参考 115~150）</i></span><span class="vital-chip" style="color:#4a5365">🦠白细胞 <b>6.35</b>×10⁹/L<i>（参考 4.00~10.00）</i></span><span class="vital-chip" style="color:#4a5365">🧫血小板 <b>226</b>×10⁹/L<i>（参考 125~350）</i></span></div>
+      </div>
+      <div class="vital-group">
+        <div class="vital-gh">🧪 肝功能<i>3 项</i></div>
+        <div class="vital-items"><span class="vital-chip" style="color:#d9821f;border-color:#d9821f66">🫀谷丙转氨酶 <b>42</b>U/L<i>（参考 7~40）</i></span><span class="vital-chip" style="color:#d9821f;border-color:#d9821f66">🫀谷草转氨酶 <b>38</b>U/L<i>（参考 13~35）</i></span><span class="vital-chip" style="color:#4a5365">🥚白蛋白 <b>41.1</b>g/L<i>（参考 40.0~55.0）</i></span></div>
+      </div>
+      <div class="vital-group">
+        <div class="vital-gh">🧪 肾功能<i>3 项</i></div>
+        <div class="vital-items"><span class="vital-chip" style="color:#d9821f;border-color:#d9821f66">🫘肌酐 <b>164</b>μmol/L<i>（参考 44~97）</i></span><span class="vital-chip" style="color:#d9821f;border-color:#d9821f66">🫘尿素氮 <b>7.8</b>mmol/L<i>（参考 2.9~7.1）</i></span><span class="vital-chip" style="color:#4a5365">🦶血尿酸 <b>408</b>μmol/L<i>（参考 155~420）</i></span></div>
+      </div>
+      <div class="vital-group">
+        <div class="vital-gh">🧪 电解质<i>3 项</i></div>
+        <div class="vital-items"><span class="vital-chip" style="color:#4a5365">⚡血钾 <b>4.15</b>mmol/L<i>（参考 3.50~5.30）</i></span><span class="vital-chip" style="color:#4a5365">🧂血钠 <b>141.0</b>mmol/L<i>（参考 137.0~147.0）</i></span><span class="vital-chip" style="color:#4a5365">🦴血钙 <b>2.32</b>mmol/L<i>（参考 2.11~2.52）</i></span></div>
+      </div>
+      <div class="vital-group">
+        <div class="vital-gh">🧪 炎症免疫<i>3 项</i></div>
+        <div class="vital-items"><span class="vital-chip" style="color:#d9821f;border-color:#d9821f66">🔥C反应蛋白 <b>9.56</b>mg/L<i>（参考 0.00~5.00）</i></span><span class="vital-chip" style="color:#4a5365">📈血沉 <b>1.4</b>mm/h<i>（参考 0.0~15.0）</i></span><span class="vital-chip" style="color:#4a5365">🛡️免疫球蛋白 <b>9.85</b>g/L<i>（参考 7.00~16.00）</i></span></div>
+      </div>
+      <div class="vital-group">
+        <div class="vital-gh">🧪 内分泌<i>3 项</i></div>
+        <div class="vital-items"><span class="vital-chip" style="color:#d9821f;border-color:#d9821f66">🦋促甲状腺激素 <b>4.79</b>mIU/L<i>（参考 0.27~4.20）</i></span><span class="vital-chip" style="color:#d9821f;border-color:#d9821f66">😰皮质醇 <b>552.9</b>nmol/L<i>（参考 100.0~350.0）</i></span><span class="vital-chip" style="color:#d93a41;border-color:#d93a4166">💉空腹胰岛素 <b>63.14</b>μIU/mL<i>（参考 2.60~24.90）</i></span></div>
+      </div>
+      <div class="vital-group">
+        <div class="vital-gh">🧪 凝血<i>2 项</i></div>
+        <div class="vital-items"><span class="vital-chip" style="color:#d9821f;border-color:#d9821f66">🩸凝血酶原国际比值 <b>1.25</b><i>（参考 0.80~1.20）</i></span><span class="vital-chip" style="color:#4a5365">🕸️D-二聚体 <b>0.31</b>mg/L<i>（参考 0.00~0.50）</i></span></div>
+      </div>
+      <div class="vital-group">
+        <div class="vital-gh">🧪 尿液<i>2 项</i></div>
+        <div class="vital-items"><span class="vital-chip" style="color:#d9821f;border-color:#d9821f66">🚽尿蛋白 <b>474</b>mg/24h<i>（参考 0~150）</i></span><span class="vital-chip" style="color:#d93a41;border-color:#d93a4166">🍬尿糖 <b>12.2</b>mmol/L<i>（参考 0.0~0.8）</i></span></div>
+      </div></div>
+  </div>
+
+  <div class="card">
+    <div class="sec-t">🥗 营养摄入</div>
+    <div class="minis"><span class="mini"><b style="color:#2f6fed">72</b> 🥩蛋白质</span><span class="mini"><b style="color:#2f6fed">70</b> 🍚碳水</span><span class="mini"><b style="color:#2f6fed">62</b> 🧈脂肪均衡</span><span class="mini"><b style="color:#2f6fed">70</b> 🥬维生素</span><span class="mini"><b style="color:#2f6fed">70</b> 💎矿物质</span><span class="mini"><b style="color:#2f6fed">62</b> 🌾膳食纤维</span><span class="mini"><b style="color:#2f6fed">58</b> 🧂控盐</span><span class="mini"><b style="color:#d9821f">45</b> 🍬控糖</span></div>
+  </div>
+
+  <div class="card">
+    <div class="sec-t">🔬 内分泌 / 🚬 习惯</div>
+    <div class="minis" style="margin-bottom:10px"><span class="mini"><b>45</b> 😰皮质醇<i>偏低</i></span><span class="mini"><b>25</b> ⚡肾上腺素<i>很低</i></span><span class="mini"><b>70</b> 😊血清素<i>正常</i></span><span class="mini"><b>65</b> 🎯多巴胺<i>正常</i></span><span class="mini"><b>60</b> 🔥甲状腺素<i>正常</i></span><span class="mini"><b>35</b> 🌙褪黑激素<i>偏低</i></span></div>
+    <div class="minis"><span class="mini" style="color:#8a94a6"><b style="color:#8a94a6">0</b> 🚬吸烟</span><span class="mini" style="color:#8a94a6"><b style="color:#8a94a6">0</b> 🍺饮酒</span><span class="mini" style="color:#8a94a6"><b style="color:#8a94a6">0</b> 🦉熬夜</span><span class="mini" style="color:#8a94a6"><b style="color:#8a94a6">0</b> 🪑久坐</span><span class="mini" style="color:#8a94a6"><b style="color:#8a94a6">0</b> 🏃晨跑</span><span class="mini" style="color:#8a94a6"><b style="color:#8a94a6">0</b> 🧘冥想</span><span class="mini" style="color:#8a94a6"><b style="color:#8a94a6">0</b> 💧多喝水</span><span class="mini" style="color:#8a94a6"><b style="color:#8a94a6">0</b> 🌙早睡</span></div>
+  </div>
+
+  <div class="card">
+    <div class="sec-t">🧠 心理与睡眠</div>
+    <div class="lines">😟焦虑 58　🌧️抑郁 0　🧘情绪稳定 100　🎯专注力 100<br>☀️清醒　😵睡眠负债 55/100　☕咖啡因 40　🕰️生物钟 0<br>🩹 外伤：无未愈合伤口（累计受伤 0 次）</div>
+  </div>
+
+  <div class="card">
+    <div class="sec-t">🦠 肠道菌群</div>
+    <div class="subs">
+        <div class="sub">
+          <div class="sub-h"><span>🦠</span>双歧杆菌</div>
+          <div class="sub-v" style="color:#2f6fed">70</div>
+          <div class="sub-bar"><i style="width:70%;background:#2f6fed"></i></div>
+        </div>
+        <div class="sub">
+          <div class="sub-h"><span>🥛</span>乳酸菌</div>
+          <div class="sub-v" style="color:#2f6fed">68</div>
+          <div class="sub-bar"><i style="width:68%;background:#2f6fed"></i></div>
+        </div>
+        <div class="sub">
+          <div class="sub-h"><span>🌾</span>拟杆菌</div>
+          <div class="sub-v" style="color:#2f6fed">72</div>
+          <div class="sub-bar"><i style="width:72%;background:#2f6fed"></i></div>
+        </div>
+        <div class="sub">
+          <div class="sub-h"><span>🍖</span>厚壁菌</div>
+          <div class="sub-v" style="color:#2f6fed">70</div>
+          <div class="sub-bar"><i style="width:70%;background:#2f6fed"></i></div>
+        </div>
+        <div class="sub">
+          <div class="sub-h"><span>🌈</span>菌群多样性</div>
+          <div class="sub-v" style="color:#2f6fed">74</div>
+          <div class="sub-bar"><i style="width:74%;background:#2f6fed"></i></div>
+        </div>
+        <div class="sub">
+          <div class="sub-h"><span>🧱</span>肠道屏障</div>
+          <div class="sub-v" style="color:#1f9d63">76</div>
+          <div class="sub-bar"><i style="width:76%;background:#1f9d63"></i></div>
+        </div></div>
+    <div class="lines" style="margin-top:11px">🤖 综合 72/100（菌群良好）　📥 营养吸收率 106%　🌈 血清素基线 +2.6　🧱 屏障 76</div>
+  </div>
+
+  <div class="card">
+    <div class="sec-t">🤧 过敏</div>
+    <div class="minis" style="margin-bottom:10px"><span class="mini" style="color:#8a94a6"><b style="color:#8a94a6">—</b> 🌾花粉</span><span class="mini" style="color:#c06a2a"><b style="color:#d9821f">2</b> 🕷️尘螨（轻度）</span><span class="mini" style="color:#8a94a6"><b style="color:#8a94a6">—</b> 🍄霉菌</span><span class="mini" style="color:#c06a2a"><b style="color:#d9821f">4</b> 🐾宠物皮屑（重度）</span><span class="mini" style="color:#8a94a6"><b style="color:#8a94a6">—</b> 🦐海鲜</span><span class="mini" style="color:#c06a2a"><b style="color:#d9821f">1</b> 🥜花生（极轻）</span><span class="mini" style="color:#8a94a6"><b style="color:#8a94a6">—</b> 🥛乳制品</span><span class="mini" style="color:#8a94a6"><b style="color:#8a94a6">—</b> ❄️冷空气</span></div>
+    <div class="lines">负荷 <b style="color:#1f9d63">20</b>/100（轻微）　正在刺激身体的：🕷️尘螨、🐾宠物皮屑</div>
+  </div>
+
+  <div class="card">
+    <div class="sec-t">📇 社交关系网</div>
+    <div class="lines" style="margin-bottom:10px">📇 3 人　平均亲密度 88.3　平均亲密感 72　无未解积怨</div>
+    <div class="sts">
+        <div class="st">
+          <span class="st-e">👪</span>
+          <span class="st-n">妈妈</span>
+          <span class="st-t">家人·生死之交</span>
+          <span class="st-bar"><i style="width:92%;background:#1f9d63"></i></span>
+          <span class="st-v" style="color:#1f9d63">92</span>
+        </div>
+        <div class="st">
+          <span class="st-e">🤝</span>
+          <span class="st-n">示例用户</span>
+          <span class="st-t">挚友·亲密无间</span>
+          <span class="st-bar"><i style="width:88%;background:#1f9d63"></i></span>
+          <span class="st-v" style="color:#1f9d63">88</span>
+        </div>
+        <div class="st">
+          <span class="st-e">👪</span>
+          <span class="st-n">爸爸</span>
+          <span class="st-t">家人·亲密无间</span>
+          <span class="st-bar"><i style="width:85%;background:#1f9d63"></i></span>
+          <span class="st-v" style="color:#1f9d63">85</span>
+        </div></div>
+  </div>
+
+  <div class="card">
+    <div class="sec-t">🧾 医保 &amp; 📜 健康大事记</div>
+    <div class="lines" style="margin-bottom:10px">🏥职工医保（有效，剩余额度 ¥5580，本年已报销 ¥420）　💸 累计医疗支出 ¥0</div>
+    <div class="alarm-list"><span class="chip">还没有记录</span></div>
+  </div>
+
+  <div class="card">
+    <div class="sec-t">🎨 爱好与技能树（0/3 槽位）</div>
+    <div class="lines" style="margin-bottom:10px">🎨 还没有在练的爱好（可以学一门：吉他/摄影/编程/跑步/烘焙…）</div>
+
+    <div class="lines" style="margin-top:11px">🖐️ 上肢劳损 <b style="color:#1f9d63">0</b>　👁️ 视疲劳 <b style="color:#1f9d63">0</b>　🥵 兴趣耗竭 <b style="color:#1f9d63">0</b></div>
+  </div>
+
+  <div class="card">
+    <div class="sec-t">🐾 宠物（0/2）</div>
+    <div class="lines" style="margin-bottom:10px">🐾 还没有养宠物（可以领养：猫/狗/仓鼠/兔子/鹦鹉/金鱼/乌龟/蜥蜴/刺猬/龙猫）</div>
+
+
+  </div>
+
+  <div class="card">
+    <div class="sec-t">🗓️ 今天</div>
+    <div class="lines" style="margin-bottom:9px"><span class="chip">🌞 周六 · 休息日</span></div>
+    <div class="lines">🌤️ 多云　⛅　气温 <b>18℃</b>　湿度 62%　AQI 55　紫外线 3</div>
+
+
+    <div class="lines" style="margin-top:9px;color:#6b7280">📊 累计：周末 <b>9</b> 天　节日 <b>4</b> 天　生日 <b>1</b> 次　极端天气 <b>3</b> 次（🌊暴雨×2　🥶寒潮×1）</div>
+  </div>
+
+  <div class="card">
+    <div class="sec-t">🧥 日常生活</div>
+    <div class="lines"><b>👔长袖休闲</b>（休闲风格）　外面 <b>18℃</b>　刚刚好<br>☀️ 紫外线 3</div>
+    <div class="lines" style="margin-top:8px">🍜 今日吃了 <b>0</b> 顿</div>
+    <div class="lines" style="margin-top:8px">🏠 <b>🛋️还算整洁</b>（整洁 72）　👕 衣物洁净 70　🍽️ 待洗碗 0</div>
+
+    <div class="lines" style="margin-top:8px">💸 月支出 <b>¥2850</b>　距下次扣款 30 天　生活开销累计 ¥0<br>🧾 账是清的</div>
+  </div>
+
+  <div class="card">
+    <div class="sec-t">💰 收支与进项</div>
+    <div class="lines">💼 月薪 <b>¥3600</b>　第一笔还没到　距下次发薪 0 天</div>
+    <div class="lines" style="margin-top:8px">🧾 能接单的手艺 <b>0</b> 门（还没练到 2 级）　累计接单 0 单 · ¥0</div>
+    <div class="lines" style="margin-top:11px">📒 2026-09 本月：收入 <b>¥0</b>　支出 <b>¥0</b>　净 <b style="color:#1f9d63">+¥0</b></div>
+    <div class="lines" style="margin-top:6px">累计 收入 ¥0　支出 ¥0　净 <b style="color:#1f9d63">+¥0</b></div>
+
+
+
+  </div>
+
+  <div class="card">
+    <div class="sec-t">🌱 生活与资源</div>
+    <div class="lines">🥗饮食 38（较差）　🏃运动 25（较差）　😴睡眠质量 42（一般）　⚖️BMI 26.4（偏高）<br>💰 钱包 ¥200　🛒 生活开销 ¥0　🏥 市医院　🎒 药箱：🌡️退烧药×2 🤧感冒药×2 💉抗生素×1 🤢胃药×1 😌安神药×1 🌼抗过敏药×1 💊止痛药×2<br>🏆 成就 5/51　🏅 🏅 🐾 🌀 🎂</div>
+  </div>
+
+  <div class="ft">健康系统 Pro v14.0　·　由 QQ Agent 插件自动生成</div>
+</body></html>

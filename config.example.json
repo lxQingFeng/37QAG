@@ -1,0 +1,54 @@
+{
+  "api": {
+    "baseUrl": "",
+    "apiKey": "",
+    "model": "",
+    "provider": "",
+    "vision": true,
+    "temperature": 0.8,
+    "maxTokens": 4096,
+    "timeoutMs": 90000
+  },
+  "snowluma": {
+    "dir": "",
+    "autoLaunch": false,
+    "wsUrl": "ws://127.0.0.1:3001",
+    "httpUrl": "http://127.0.0.1:3000",
+    "accessToken": "",
+    "httpAccessToken": "",
+    "accountWhitelist": [],
+    "autoUnhookStrangers": true,
+    "webuiPassword": ""
+  },
+  "allow": {
+    "groups": [],
+    "private": []
+  },
+  "deny": {
+    "groups": [],
+    "private": []
+  },
+  "allowAllWhenEmpty": false,
+  "localJev": {
+    "enabled": false,
+    "modelPath": "models/Qwen3.5-0.8B-Q6_K.gguf",
+    "exePath": "runtime/llama/llama-server.exe",
+    "modelId": "qwen3.5-0.8b",
+    "vision": {
+      "enabled": false,
+      "mmprojPath": "models/mmproj-Qwen3.5-0.8B-BF16.gguf",
+      "port": 18085,
+      "ctxSize": 4096,
+      "gpuLayers": 0,
+      "maxTokens": 64
+    }
+  },
+  "server": {
+    "port": 3210,
+    "instanceName": "",
+    "token": "",
+    "autoStart": false,
+    "autoStartPeer": true,
+    "closeToTray": true
+  }
+}

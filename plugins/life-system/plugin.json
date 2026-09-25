@@ -1,0 +1,74 @@
+{
+  "id": "life-system",
+  "name": "世界与事件",
+  "version": "0.4.3",
+  "apiVersion": 1,
+  "category": "utility",
+  "description": "世界设定 + 日历 + 近况账本。默认用正则从她自己的话里抓；打开事件池开关后才会从池子随机抽。可按日历/账本轻调精力目标。",
+  "author": "QQ Agent",
+  "enabledByDefault": false,
+  "capabilities": [
+    "life.today",
+    "life.worldbook",
+    "life.facts",
+    "life.roll",
+    "life.clear",
+    "state.energy-targets"
+  ],
+  "requires": [],
+  "settings": {
+    "worldbook": "",
+    "calendarEnabled": true,
+    "energyFromWorld": true,
+    "eventPoolEnabled": false,
+    "eventPool": "",
+    "eventsPerDay": 4,
+    "eventGapMin": 60,
+    "eventRepeatH": 72
+  },
+  "configSchema": {
+    "worldbook": {
+      "type": "textarea",
+      "label": "世界设定（不是人设）",
+      "description": "只写世界：城市、天气、行规、会发生什么。她是谁写在「设置 → 人设」。"
+    },
+    "eventPoolEnabled": {
+      "type": "boolean",
+      "label": "启用事件池",
+      "description": "关 = 只靠正则把她自己说的话记进账本（吃饭/在忙/困了等）。开 = 还会从事件池按节奏随机抽。"
+    },
+    "eventPool": {
+      "type": "textarea",
+      "label": "事件池",
+      "description": "每行：分组: 一句话。仅打开「启用事件池」后生效。"
+    },
+    "eventsPerDay": {
+      "type": "number",
+      "label": "每天最多抽几条",
+      "description": "事件池开启时有效。默认 4。"
+    },
+    "eventGapMin": {
+      "type": "number",
+      "label": "两条事件最小间隔（分钟）",
+      "description": "事件池开启时有效。默认 60。"
+    },
+    "eventRepeatH": {
+      "type": "number",
+      "label": "同一条素材多少小时不重复",
+      "description": "事件池开启时有效。默认 72。"
+    },
+    "calendarEnabled": {
+      "type": "boolean",
+      "label": "按日历感知节假日/调休",
+      "description": "读 data/life-calendar.json。只有节假日、调休、假期前后会补一行；普通日子不注入。"
+    },
+    "energyFromWorld": {
+      "type": "boolean",
+      "label": "世界/账本修正精力目标",
+      "description": "开启后：周末/假期/调休会按日历轻调精力目标；账本里「没睡好/还没吃/在忙」也会小幅压精力。"
+    }
+  },
+  "prompt": {
+    "sections": []
+  }
+}

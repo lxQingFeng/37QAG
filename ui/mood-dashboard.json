@@ -1,0 +1,183 @@
+{
+  "ok": true,
+  "at": 1790255106275,
+  "enabled": true,
+  "commandSleep": false,
+  "sleep": {
+    "sleeping": false,
+    "kind": "none",
+    "status": "awake",
+    "what": "",
+    "reason": ""
+  },
+  "self": {
+    "status": "awake",
+    "what": "",
+    "at": 0
+  },
+  "dominant": {
+    "emotion": "calm",
+    "word": "平静",
+    "level": 0
+  },
+  "moods": {
+    "happy": 0,
+    "excited": 0,
+    "angry": 0,
+    "jealous": 0,
+    "sad": 0
+  },
+  "meters": {
+    "fatigue": 0,
+    "spunk": 0,
+    "depress": 0,
+    "satisfaction": 0
+  },
+  "items": [
+    {
+      "key": "happy",
+      "label": "心情值",
+      "icon": "💗",
+      "value": 0,
+      "tone": "good",
+      "derived": false
+    },
+    {
+      "key": "energy",
+      "label": "精力值",
+      "icon": "⚡",
+      "value": 100,
+      "tone": "good",
+      "derived": true
+    },
+    {
+      "key": "fatigue",
+      "label": "疲劳度",
+      "icon": "😴",
+      "value": 0,
+      "tone": "bad",
+      "derived": false
+    },
+    {
+      "key": "stress",
+      "label": "压力值",
+      "icon": "😰",
+      "value": 0,
+      "tone": "bad",
+      "derived": true
+    },
+    {
+      "key": "stability",
+      "label": "情绪稳定",
+      "icon": "🧘",
+      "value": 100,
+      "tone": "good",
+      "derived": true
+    },
+    {
+      "key": "focus",
+      "label": "专注力",
+      "icon": "🎯",
+      "value": 100,
+      "tone": "good",
+      "derived": true
+    },
+    {
+      "key": "satisfaction",
+      "label": "满足感",
+      "icon": "🫶",
+      "value": 0,
+      "tone": "good",
+      "derived": false
+    },
+    {
+      "key": "depress",
+      "label": "抑郁度",
+      "icon": "🌧️",
+      "value": 0,
+      "tone": "bad",
+      "derived": false
+    },
+    {
+      "key": "excited",
+      "label": "兴奋度",
+      "icon": "✨",
+      "value": 0,
+      "tone": "good",
+      "derived": false
+    },
+    {
+      "key": "angry",
+      "label": "生气值",
+      "icon": "😤",
+      "value": 0,
+      "tone": "bad",
+      "derived": false
+    },
+    {
+      "key": "jealous",
+      "label": "吃醋值",
+      "icon": "💔",
+      "value": 0,
+      "tone": "bad",
+      "derived": false
+    },
+    {
+      "key": "sad",
+      "label": "难过值",
+      "icon": "😢",
+      "value": 0,
+      "tone": "bad",
+      "derived": false
+    },
+    {
+      "key": "spunk",
+      "label": "吵架速度",
+      "icon": "🔥",
+      "value": 0,
+      "tone": "bad",
+      "derived": false
+    },
+    {
+      "key": "health",
+      "label": "健康值",
+      "icon": "❤️",
+      "value": 100,
+      "tone": "good",
+      "derived": true
+    },
+    {
+      "key": "comfort",
+      "label": "舒适度",
+      "icon": "🛋️",
+      "value": 33,
+      "tone": "good",
+      "derived": true
+    },
+    {
+      "key": "loneliness",
+      "label": "孤独感",
+      "icon": "🫂",
+      "value": 50,
+      "tone": "bad",
+      "derived": true
+    },
+    {
+      "key": "security",
+      "label": "安全感",
+      "icon": "🛡️",
+      "value": 100,
+      "tone": "good",
+      "derived": true
+    },
+    {
+      "key": "social",
+      "label": "社交需求",
+      "icon": "💬",
+      "value": 0,
+      "tone": "neutral",
+      "derived": true
+    }
+  ],
+  "publishedAt": 1790255106278
+}

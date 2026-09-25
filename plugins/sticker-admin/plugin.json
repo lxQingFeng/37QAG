@@ -1,0 +1,48 @@
+{
+  "id": "sticker-admin",
+  "name": "表情包管理",
+  "version": "1.2.0",
+  "apiVersion": 1,
+  "category": "utility",
+  "description": "表情包库图形化管理：查看全部表情与提示词、新增、删除、改提示词，新增时让 AI 看图自动写提示词。",
+  "author": "WorkBuddy",
+  "enabledByDefault": true,
+  "permissions": ["web_fetch"],
+  "capabilities": ["sticker.host-tap"],
+  "intercept": {
+    "capability": "sticker.host-tap",
+    "order": 900
+  },
+  "settingsUi": {
+    "id": "main",
+    "label": "表情包库",
+    "file": "settings-ui.js"
+  },
+  "settings": {
+    "autoAnnotate": true,
+    "annotatePrompt": "",
+    "pending": null
+  },
+  "configSchema": {
+    "autoAnnotate": {
+      "type": "boolean",
+      "label": "新增表情时自动让 AI 看图写提示词",
+      "default": true
+    },
+    "annotatePrompt": {
+      "type": "string",
+      "label": "识图提示词的额外要求（留空 = 用默认口径）",
+      "default": ""
+    },
+    "pending": {
+      "type": "internal",
+      "label": "管理界面提交的待执行操作",
+      "description": "由「设置 → 表情包库」面板写入，插件每 1.5 秒取走执行并把结果回填。不要手改。"
+    },
+    "snapshot": {
+      "type": "internal",
+      "label": "表情库快照",
+      "description": "插件写、面板读：面板靠它渲染表情列表。不要手改（改了会在下一次刷新时被覆盖）。"
+    }
+  }
+}

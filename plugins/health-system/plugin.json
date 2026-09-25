@@ -1,0 +1,1111 @@
+{
+  "id": "health-system",
+  "name": "健康系统",
+  "version": "14.0.1",
+  "apiVersion": 1,
+  "category": "utility",
+  "description": "给人设用的生存状态模拟插件：24 项身体与心理状态（口渴/饱食/精力/健康/心情/睡眠/疲劳/舒适/压力/孤独/社交/满足/归属/发烧度/成瘾度/求知欲/同理心/安全感/抵抗力/焦虑度/抑郁度/情绪稳定/专注力/睡眠负债）随真实时间自动衰减，按状态组合触发疾病，状态反过来影响对话情绪（只改语气，不显示数值）。除了生病与恢复，它还包含社交关系网、爱好与技能树、宠物养成、医保与人生大事记——让一个人设真正“活着”：会饿会困会得病，也会练琴、养猫、交朋友、留下人生记录。现有 67 种疾病 + 8 种宠物专属疾病、8 大器官系统、114 个可调用工具、146 项可配置项。疾病系统含季节病、并发症、慢性病、传染病、靶向用药、住院/静养与预后诊断；v3.0 新增 8 大器官系统、病原体与潜伏期、免疫记忆与疫苗、耐药性与药物副作用、体质系统及医疗经济；v4.0 新增一整套临床检验指标（血压/心率/呼吸/体温/血氧/血糖/糖化血红蛋白/血脂四项/尿酸/血常规/肝功/肾功/电解质/BMI），指标由生活方式+疾病+器官实时派生，异常指标会反过来加重身体负担，并配套抽血化验、指标速览、清淡饮食、称体重等动作；v5.0 新增环境系统（天气/气温/湿度/空气质量/紫外线，影响指标、疾病易感与心情）、医疗体系（社区医院/市医院/三甲医院/中医院四档，医生水平决定确诊率与治愈率、费用随等级浮动，含急诊）、家族遗传史（10 类遗传倾向使对应疾病易感 ×1.8）、营养素系统（蛋白质/碳水/脂肪/维生素/矿物质/膳食纤维/控盐/控糖，直接影响白蛋白/血红蛋白/钙钾/甘油三酯/血压/血糖）；v6.0 新增心理精神层（焦虑度/抑郁度/情绪稳定/专注力 + 焦虑症/抑郁症/恐慌症/社交恐惧/强迫症/PTSD/双相/季节性情感障碍 + 心理咨询/冥想/写日记/聚会/哭泣）、睡眠深度层（浅睡/深睡/REM 分期、睡眠负债、生物钟偏移、咖啡因 + 熬夜/小睡/褪黑素/调作息）、内分泌层（皮质醇/肾上腺素/血清素/多巴胺/甲状腺素/褪黑激素 + 甲亢/甲减/内分泌失调）、创伤急救层（割伤/烫伤/扭伤/骨折/擦伤/冻伤/咬伤/撞伤 + 急救包扎）、影像检查层（心电图/B超/X光/CT/尿常规/便常规/甲状腺功能/肿瘤标志物）、社区流行病层（疫情爆发与等级、口罩/消毒/隔离防护）、习惯层（吸烟/饮酒/熬夜/久坐/晨跑/冥想/多喝水/早睡，坏习惯持续损伤器官）、成就徽章（32 项）与年龄衰老机制；v7.0 新增基础需求深化系统：13 个基础维度各自拥有五阶段体感命名（如口渴度从「水润」到「濒临脱水」），维度之间产生 29 条连锁反应（缺水→疲劳↑与心情↓、饥饿→免疫↓、缺觉→焦虑↑、压力→失眠、孤独→归属感瓦解、健康透支→免疫崩溃等），并拆出六项深层生理亚成分（电解质/热量盈余/精神疲劳/亲密需求/情绪波动/体力储备），恢复机制改为非线性（越缺越补得动、接近满值边际递减、吃撑会转为热量盈余并顶得难受、白水喝多会稀释电解质），配套水平衡检查、补充电解质、身体信号扫描三项新动作；v7.1 新增图片报表：/健康 指令与「健康图片报表」工具不再输出一屏文字，而是把 24 项状态条、六项深层生理、连锁反应、疾病卡（阶段/病原/确诊/受累器官/症状）、八大器官、检验指标（异常高亮 + 关键值）、营养、激素、习惯、心理睡眠、生活资源与成就渲染成一张完整的状态图直接发到聊天（Electron 离屏渲染 HTML → PNG，零三方依赖，宽度可配置），并在图片发出后阻止模型重复复述文字；图片渲染/发送任一环节失败会自动降级回纯文字报告，不影响使用。v8.0「生命节律与身心生态」再添七层：昼夜节律（皮质醇晨高夜低、褪黑素夜高昼低、体温午后达峰的 24 小时真实曲线，状态衰减由白天/夜晚二分升级为曲线插值，含生物钟相位偏移与建议睡眠窗口）、肠道菌群（双歧杆菌/乳酸菌/拟杆菌/厚壁菌/多样性/肠道屏障六项，决定营养吸收率、免疫调节与情绪基线，抗生素会无差别重创菌群需益生菌与高纤维补回）、过敏系统（花粉/尘螨/霉菌/宠物皮屑/海鲜/花生/乳制品/冷空气八种过敏原，随季节与天气实时触发过敏负荷，可诱发过敏性鼻炎/荨麻疹/哮喘/过敏性休克）、社交关系网（家人/恋人/挚友/同事/群友五类关系，亲密度会随时间疏远、冷淡积累怨，深聊与和解可修复并反哺归属感与安全感）、生物年龄（器官/代谢/生活方式/习惯/心理/菌群/营养/外伤/过敏九类因素推算生理年龄，与实际年龄的差值即身体透支程度）、医保系统（居民 50%/职工 75%/商业 90% 三档报销，含年度额度上限，保费自理，全部医疗支出走医保结算）与健康大事记（首次患病/生日/成就/医保等节点自动入轴，供对话回忆引用）。v9.0 新增爱好与技能树：19 种爱好（弹吉他/弹钢琴/唱歌/画画/摄影/书法/跑步/游泳/瑜伽/跳舞/木工/编织/做饭/烘焙/养花/读书/下棋/编程/电竞）× 7 大类（音乐/美术/运动/手艺/学识/数码/生活），学 → 练 → 熟练度 11 级阶梯（门外汉→传奇）→ 作品（习作/合格品/精良品/杰作四档品质），作品可赠送给关系网里的人提升亲密度并化解积怨；热情会随时间消退、久不练掉得更快，连练同一爱好累积兴趣耗竭；练过头会累积上肢劳损与视疲劳，并可能触发腱鞘炎/腰肌劳损/干眼症/兴趣耗竭四种新疾病；爱好本身也带来满足感/心情/减压/安全感/社交的被动加成，并新增 6 项成就。v10.0 新增宠物养成：可领养 10 种宠物（猫/狗/仓鼠/兔子/鹦鹉/金鱼/乌龟/蜥蜴/刺猬/龙猫），每种有不同的寿命、食量、掉毛量与夜行习性；宠物有 5 个成长阶段（幼崽→少年→成年→老年→暮年）与四维需求（饱食/饮水/清洁/心情，按真实时间衰减），要喂养、换水、清洁、陪玩、撸、遛、训练学技能（各物种可学的把戏不同）并能表演给人看；宠物会得自己的 8 种疾病（营养不良/脱水/皮肤病/宠物抑郁/寄生虫/肥胖/受凉感冒/老年病），要自费带去看兽医；寿命到了会寿终并留作纪念；宠物还会反过来影响主人——掉毛皮屑推高过敏负荷、夜行物种夜里闹腾影响睡眠、亲密度反哺归属感与孤独感，并新增 6 项成就。v11.0 新增「日常生活」四层：穿衣（9 档衣物各有保暖度与风格，体感温度 = 气温 + 保暖 - 淋湿惩罚；天冷不加衣会冻着、大热天捂出一身汗、雨天不穿防水会淋透、紫外线强又没防晒会累积日晒直至晒伤——uv 字段此前只是显示用的装饰，这次才真正进入循环）、三餐选择（eat 不再是 Math.random() 掷骰子决定吃什么，而是 9 种可选菜品：自己下厨/食堂/外卖/泡面/快餐/火锅/夜宵/下馆子/朋友聚餐，各自在营养、菌群、钱包、心情与社交上有不同代价，有「做饭」爱好时下厨品质提升，夜宵仅限夜间，聚餐会增进关系）；房间与家务（整洁度会自然衰减、宠物掉毛会加速弄脏，可打扫/洗衣/晒被/洗碗/请保洁，整洁度低会放大尘螨过敏负荷——尘螨此前只看室外 AQI，其实它住在床单被褥里，补上这一环后「宠物掉毛 → 房间变脏 → 尘螨 → 过敏性鼻炎」才连成完整因果链）；账单（每月房租/水电/网费/伙食共 ¥2850 自动结算，被动收入约 ¥3600/月 → 顿顿外卖必然超支、自己下厨几乎不花钱，欠费会持续磨损压力与安全感，让「打工」终于有了理由）。 v12.0「钱币系统」补齐了收入侧——此前支出侧已有六条腿（医疗/爱好/宠物/三餐/账单/保洁），收入侧却只有两条而且都很虚：一是每小时 ¥5 的凭空滴灌（注释原文写着「保证不会被医疗费用卡死」，是没有雇主、没有发薪日的兜底补丁），二是「打工」拿 60+random(41) 掷骰子、跟体质健康疲劳饥饿全无关（与 v11.0 刚铲掉的那句 eat 随机数同一个毛病，只是长在收入侧），而 v9.0 建的技能树（19 门爱好 / 11 级熟练度）又完全没有变现出口，练到「泰斗」和「门外汉」在收入上一模一样。现在三件事一起补：发薪日（月薪 ¥3600 每 30 天一次性到账，与账单同周期——「月中紧、发薪日松」的真实起伏；原 moneyAllowance 降级为零钱 ¥1/小时）；打工读状态（健康/精力/疲劳/饱食/水分/心情归一化成 0.55~1.45 的收入系数，状态好手脚麻利赚得多、饿着肚子只值半价，并分体力活/跑腿/细活三种工种，细活需最高爱好等级 ≥4）；技艺变现（画画/摄影/书法/木工/编织/做饭/烘焙/编程/电竞/吉他/钢琴/唱歌 12 门「有交付物」的手艺可按等级接单，接一单 = 拿这门手艺做一件作品、按品质与熟练度定价卖出去，等级决定作品品质的期望分布，途中可能遇到甲方压价/加钱/急单/退稿）。另有收支账本记下每一笔来路与去向，可查本月与累计净结余。 v13.0「时间与社会」没有再新开一层孤立系统，而是把此前断掉的链接上——通读代码后发现一批「只降不升」的孤岛维度：求知欲与同理心在状态表里登记了衰减，却没有任何一个补给点（每天醒来必掉，永远回不去）；营养素里的碳水/脂肪/控盐/控糖四项从未被任何一餐喂过（三餐只驱动 diet 一个总分，8 项营养素里 4 项全程静止）；而 v3.0 就写在结构里、注释自称「预留」的 remissions 字段一直是空的。这一版逐条接通：19 门爱好各自给出求知欲与同理心的补给系数（读书最高、跑步最低），练爱好终于同时滋养心智；9 道菜各配 8 项营养素的逐项增减，吃一顿饭会真实改动四项此前静止的营养素（泡面与快餐的脂肪、控盐是负数——这四项的语义都是「高=好」，高油高盐必须扣分），有「做饭」爱好时下厨的营养收益还会乘上熟练度；慢性病不再治不好也去不掉，而是靠饮食 ≥65 / 运动 ≥55 / 睡眠质量 ≥60 的生活方式达标累积控制进度，攒满 3 次转入 21 天缓解期（期间不复发，到期若诱因仍在会卷土重来，生活方式垮掉则进度倒退），「高血压」这类病于是第一次有了真正的长期管理。同时补上整个缺失的时间维度：星期（周末心情与舒适度缓慢回升、社交欲望更强、周一压力最明显，并驱动睡懒觉的恢复加成与打工的周末溢价）、节日（元旦/情人节/劳动节/国庆/双十一/圣诞等 11 个公历节日 + 春节/元宵/端午/七夕/中秋/重阳等农历节日——农历无法用公式推算，按公历年月日逐条查表，查不到就跳过而绝不猜，当天给心情与社交加成并改写物价：春节 ×1.45、双十一 ×0.88）、极端天气（高温预警/寒潮/暴雨/台风/沙尘暴按季节小概率抽取，直接叠加改写气温/湿度/空气质量/紫外线，压低舒适度与心情并提高对应疾病易感，台风天外卖停送）、生日（从「只写一行 log」升级为真实事件：红包 ¥66~180 入账并记进收支账本、亲友亲密度 +4、心情与满足度回补，同时计入人生大事记）。顺带修掉一个藏了很久的日期 bug：睡眠日志/体检报告/影像记录/心理记录/环境快照五处都用 toISOString() 取日期键，在 UTC+8 会把凌晨的「今天」算成昨天（导致当日记录被误清），现统一改走本地时间。新增 7 项成就（终身学习/柔软心肠/周末战士/节日控/又长一岁/追风者/慢病管家），成就总数 51。 v14.0「检验深化」把临床检验指标从 26 项扩到 36 项，新添五组：炎症免疫（C反应蛋白 CRP/血沉 ESR/免疫球蛋白 Ig——CRP 与 ESR 随感染数、外伤数、过敏负荷与疼痛实时上升，是「身体里有没有火」的直接读数；免疫球蛋白随营养不良下滑、随慢性感染上升）、内分泌（促甲状腺激素 TSH/皮质醇/空腹胰岛素——TSH 随压力与睡眠负债升高，皮质醇由压力负荷（stress 是「高=无压力」的反向维度，故取 100−stress）+焦虑+缺觉+咖啡因共同推高，胰岛素随 BMI 与血糖上升、运动改善）、凝血（凝血酶原国际标准化比值 INR/D-二聚体——INR 随肝损伤与营养不良升高、随饮食健康回落，D-二聚体由久坐不动、外伤与感染推高）、尿液（尿蛋白/尿糖——尿蛋白由肾损伤与收缩压驱动，尿糖只在血糖超过肾糖阈约 8.9 mmol/L 时溢出）。每项都有真实联动公式而非装饰数字：疾病效应表为 60+ 种疾病补上新指标偏移（如重症肺炎 CRP +45、甲减 TSH +4.5、糖尿病尿糖 +2.5、抑郁症皮质醇 −45——皮质醇反向是因为情绪低落时 HPA 轴钝化）；异常指标会反过来加重身体负担（蛋白尿磨肾、高皮质醇磨脑、INR 异常提示凝血风险、高胰岛素提示代谢综合征）；情绪提示与身体症状文案同步扩展（「尿里泡沫多」「情绪紧绷、睡不好也吃不下」等）。健康图片报表的检验指标卡片从只显示 6 项关键值重构为全量分组展示：10 个分组（循环/呼吸/代谢/血脂/血常规/肝功/肾功能/电解质/炎症免疫/内分泌/凝血/尿液）各成卡片，每项带参考范围，异常项高亮着色。",
+  "author": "QQ Agent",
+  "enabledByDefault": true,
+  "capabilities": [
+    "health.state"
+  ],
+  "requires": [],
+  "settings": {
+    "enabled": true,
+    "decayInterval": 3600,
+    "thirstDecay": 10,
+    "hungerDecay": 8,
+    "energyDecay": 5,
+    "healthDecay": 3,
+    "moodDecay": 3,
+    "sleepDecay": 4,
+    "fatigueDecay": 6,
+    "comfortDecay": 4,
+    "stressDecay": 2,
+    "lonelinessDecay": 5,
+    "socialDecay": 6,
+    "satisfactionDecay": 3,
+    "belongingDecay": 2,
+    "thirstInitial": 80,
+    "hungerInitial": 80,
+    "energyInitial": 80,
+    "healthInitial": 80,
+    "moodInitial": 80,
+    "sleepInitial": 80,
+    "fatigueInitial": 80,
+    "comfortInitial": 80,
+    "stressInitial": 80,
+    "lonelinessInitial": 80,
+    "socialInitial": 80,
+    "satisfactionInitial": 80,
+    "belongingInitial": 80,
+    "feverDecay": 4,
+    "addictionDecay": 3,
+    "curiosityDecay": 4,
+    "empathyDecay": 3,
+    "securityDecay": 4,
+    "immunityDecay": 3,
+    "feverInitial": 0,
+    "addictionInitial": 0,
+    "curiosityInitial": 80,
+    "empathyInitial": 80,
+    "securityInitial": 80,
+    "immunityInitial": 80,
+    "diseaseProgressionChance": 0.15,
+    "diseaseRecoverChance": 0.3,
+    "diseaseRelaxThreshold": 15,
+    "seasonalDiseases": true,
+    "autoSleep": true,
+    "sleepSleepThreshold": 30,
+    "sleepWakeThreshold": 80,
+    "organDamageRate": 1,
+    "organRegenRate": 1.2,
+    "incubationEnabled": true,
+    "antibodyDays": 3,
+    "drugResistanceGain": 12,
+    "drugResistanceDecay": 1,
+    "sideEffects": true,
+    "constitution": "balanced",
+    "moneyInitial": 200,
+    "moneyAllowance": 1,
+    "costExam": 30,
+    "costCure": 50,
+    "costHospitalize": 200,
+    "costVaccine": 60,
+    "costBlood": 40,
+    "weightInitial": 58,
+    "heightInitial": 165,
+    "dietInitial": 65,
+    "exerciseInitial": 60,
+    "sleepQualityInitial": 70,
+    "envEnabled": true,
+    "familyHistoryEnabled": true,
+    "hospital": "general",
+    "nutrientDecay": 1,
+    "costSupplement": 25,
+    "anxietyDecay": 3,
+    "depressionDecay": 2,
+    "stabilityDecay": 3,
+    "focusDecay": 4,
+    "sleepDebtDecay": 1,
+    "anxietyInitial": 15,
+    "depressionLevelInitial": 10,
+    "stabilityInitial": 80,
+    "focusInitial": 75,
+    "sleepDebtInitial": 0,
+    "therapyCost": 80,
+    "melatoninCost": 30,
+    "firstAidCost": 40,
+    "disinfectCost": 15,
+    "quitCost": 60,
+    "injuryEnabled": true,
+    "epidemicEnabled": true,
+    "habitEnabled": true,
+    "achievementEnabled": true,
+    "agingEnabled": true,
+    "ageInitial": 20,
+    "needDepthEnabled": true,
+    "cascadeRate": 1,
+    "costElectrolyte": 12,
+    "electrolyteInitial": 75,
+    "calorieSurplusInitial": 20,
+    "mentalFatigueInitial": 20,
+    "intimacyInitial": 70,
+    "moodVolatilityInitial": 18,
+    "physicalReserveInitial": 70,
+    "reportImageEnabled": true,
+    "reportImageWidth": 900,
+    "circadianEnabled": true,
+    "circadianOffsetInitial": 0,
+    "gutEnabled": true,
+    "allergyEnabled": true,
+    "relationEnabled": true,
+    "relationSeedCount": 3,
+    "bioAgeEnabled": true,
+    "insuranceEnabled": true,
+    "timelineEnabled": true,
+    "costProbiotics": 15,
+    "costAllergenTest": 80,
+    "costAntihistamine": 18,
+    "hobbyEnabled": true,
+    "hobbyLearnCost": 25,
+    "hobbyMaxSlots": 3,
+    "hobbyPassionDecay": 1.2,
+    "hobbyStrainDecay": 1.6,
+    "petEnabled": true,
+    "petMaxCount": 2,
+    "petAdoptCostMul": 1,
+    "petFoodCost": 12,
+    "petVetCost": 80,
+    "petNeedDecay": 1,
+    "petAllergyFactor": 1,
+    "outfitEnabled": true,
+    "mealChoiceEnabled": true,
+    "mealCostMul": 1,
+    "homeEnabled": true,
+    "homeTidyDecay": 0.55,
+    "costHireCleaner": 130,
+    "billsEnabled": true,
+    "billMonthlyTotal": 2850,
+    "salaryEnabled": true,
+    "salaryMonthly": 3600,
+    "gigEnabled": true,
+    "gigPayMul": 1,
+    "gigCooldownHours": 10,
+    "ledgerEnabled": true,
+    "weekdayEnabled": true,
+    "festivalEnabled": true,
+    "extremeEnabled": true,
+    "extremeChance": 0.02
+  },
+  "configSchema": {
+    "enabled": {
+      "type": "boolean",
+      "label": "【基本】启用健康系统"
+    },
+    "decayInterval": {
+      "type": "number",
+      "label": "【基本】状态衰减间隔（秒）",
+      "description": "每隔多少秒状态下降一次，默认 1 小时（3600）",
+      "min": 60,
+      "max": 86400
+    },
+    "thirstDecay": {
+      "type": "number",
+      "label": "【衰减】💧 口渴度每次衰减",
+      "min": 1,
+      "max": 50
+    },
+    "hungerDecay": {
+      "type": "number",
+      "label": "【衰减】🍚 饱食度每次衰减",
+      "min": 1,
+      "max": 50
+    },
+    "energyDecay": {
+      "type": "number",
+      "label": "【衰减】⚡ 精力值每次衰减",
+      "min": 1,
+      "max": 50
+    },
+    "healthDecay": {
+      "type": "number",
+      "label": "【衰减】❤️ 健康值每次衰减",
+      "min": 1,
+      "max": 50
+    },
+    "moodDecay": {
+      "type": "number",
+      "label": "【衰减】😊 心情值每次衰减",
+      "min": 1,
+      "max": 50
+    },
+    "sleepDecay": {
+      "type": "number",
+      "label": "【衰减】😴 睡眠需求每次衰减",
+      "min": 1,
+      "max": 50
+    },
+    "fatigueDecay": {
+      "type": "number",
+      "label": "【衰减】😪 疲劳度每次衰减",
+      "min": 1,
+      "max": 50
+    },
+    "comfortDecay": {
+      "type": "number",
+      "label": "【衰减】🛋️ 舒适度每次衰减",
+      "min": 1,
+      "max": 50
+    },
+    "stressDecay": {
+      "type": "number",
+      "label": "【衰减】😰 压力值每次衰减",
+      "min": 1,
+      "max": 50
+    },
+    "lonelinessDecay": {
+      "type": "number",
+      "label": "【衰减】🥺 孤独感每次衰减",
+      "min": 1,
+      "max": 50
+    },
+    "socialDecay": {
+      "type": "number",
+      "label": "【衰减】🤝 社交需求每次衰减",
+      "min": 1,
+      "max": 50
+    },
+    "satisfactionDecay": {
+      "type": "number",
+      "label": "【衰减】🎯 满足感每次衰减",
+      "min": 1,
+      "max": 50
+    },
+    "belongingDecay": {
+      "type": "number",
+      "label": "【衰减】🏠 归属感每次衰减",
+      "min": 1,
+      "max": 50
+    },
+    "thirstInitial": {
+      "type": "number",
+      "label": "【状态】💧 口渴度",
+      "min": 0,
+      "max": 100,
+      "description": "当前状态值：修改后立即应用到机器人"
+    },
+    "hungerInitial": {
+      "type": "number",
+      "label": "【状态】🍚 饱食度",
+      "min": 0,
+      "max": 100,
+      "description": "当前状态值：修改后立即应用到机器人"
+    },
+    "energyInitial": {
+      "type": "number",
+      "label": "【状态】⚡ 精力值",
+      "min": 0,
+      "max": 100,
+      "description": "当前状态值：修改后立即应用到机器人"
+    },
+    "healthInitial": {
+      "type": "number",
+      "label": "【状态】❤️ 健康值",
+      "min": 0,
+      "max": 100,
+      "description": "当前状态值：修改后立即应用到机器人"
+    },
+    "moodInitial": {
+      "type": "number",
+      "label": "【状态】😊 心情值",
+      "min": 0,
+      "max": 100,
+      "description": "当前状态值：修改后立即应用到机器人"
+    },
+    "sleepInitial": {
+      "type": "number",
+      "label": "【状态】😴 睡眠需求",
+      "min": 0,
+      "max": 100,
+      "description": "当前状态值：修改后立即应用到机器人"
+    },
+    "fatigueInitial": {
+      "type": "number",
+      "label": "【状态】😪 疲劳度",
+      "min": 0,
+      "max": 100,
+      "description": "当前状态值：修改后立即应用到机器人"
+    },
+    "comfortInitial": {
+      "type": "number",
+      "label": "【状态】🛋️ 舒适度",
+      "min": 0,
+      "max": 100,
+      "description": "当前状态值：修改后立即应用到机器人"
+    },
+    "stressInitial": {
+      "type": "number",
+      "label": "【状态】😰 压力值",
+      "min": 0,
+      "max": 100,
+      "description": "当前状态值：修改后立即应用到机器人"
+    },
+    "lonelinessInitial": {
+      "type": "number",
+      "label": "【状态】🥺 孤独感",
+      "min": 0,
+      "max": 100,
+      "description": "当前状态值：修改后立即应用到机器人"
+    },
+    "socialInitial": {
+      "type": "number",
+      "label": "【状态】🤝 社交需求",
+      "min": 0,
+      "max": 100,
+      "description": "当前状态值：修改后立即应用到机器人"
+    },
+    "satisfactionInitial": {
+      "type": "number",
+      "label": "【状态】🎯 满足感",
+      "min": 0,
+      "max": 100,
+      "description": "当前状态值：修改后立即应用到机器人"
+    },
+    "belongingInitial": {
+      "type": "number",
+      "label": "【状态】🏠 归属感",
+      "min": 0,
+      "max": 100,
+      "description": "当前状态值：修改后立即应用到机器人"
+    },
+    "feverDecay": {
+      "type": "number",
+      "label": "【衰减】🤒 发烧度自然退烧",
+      "min": 1,
+      "max": 50
+    },
+    "addictionDecay": {
+      "type": "number",
+      "label": "【衰减】🎮 成瘾度缓解速率",
+      "min": 1,
+      "max": 50
+    },
+    "curiosityDecay": {
+      "type": "number",
+      "label": "【衰减】🔍 求知欲每次衰减",
+      "min": 1,
+      "max": 50
+    },
+    "empathyDecay": {
+      "type": "number",
+      "label": "【衰减】💗 同理心每次衰减",
+      "min": 1,
+      "max": 50
+    },
+    "securityDecay": {
+      "type": "number",
+      "label": "【衰减】🛡️ 安全感每次衰减",
+      "min": 1,
+      "max": 50
+    },
+    "immunityDecay": {
+      "type": "number",
+      "label": "【衰减】🧬 抵抗力（v3.0 起由病情/器官自动调节，此项不再生效）",
+      "min": 1,
+      "max": 50
+    },
+    "feverInitial": {
+      "type": "number",
+      "label": "【状态】🤒 发烧度(初始0)",
+      "min": 0,
+      "max": 100,
+      "description": "当前状态值：修改后立即应用到机器人"
+    },
+    "addictionInitial": {
+      "type": "number",
+      "label": "【状态】🎮 成瘾度(初始0)",
+      "min": 0,
+      "max": 100,
+      "description": "当前状态值：修改后立即应用到机器人"
+    },
+    "curiosityInitial": {
+      "type": "number",
+      "label": "【状态】🔍 求知欲",
+      "min": 0,
+      "max": 100,
+      "description": "当前状态值：修改后立即应用到机器人"
+    },
+    "empathyInitial": {
+      "type": "number",
+      "label": "【状态】💗 同理心",
+      "min": 0,
+      "max": 100,
+      "description": "当前状态值：修改后立即应用到机器人"
+    },
+    "securityInitial": {
+      "type": "number",
+      "label": "【状态】🛡️ 安全感",
+      "min": 0,
+      "max": 100,
+      "description": "当前状态值：修改后立即应用到机器人"
+    },
+    "immunityInitial": {
+      "type": "number",
+      "label": "【状态】🧬 抵抗力",
+      "min": 0,
+      "max": 100,
+      "description": "越高越不容易生病、恢复越快；修改后立即应用到机器人"
+    },
+    "diseaseProgressionChance": {
+      "type": "number",
+      "label": "【疾病】恶化/减轻概率",
+      "description": "每次衰减时疾病阶段变化的概率，0-1（0.15 = 15%）",
+      "min": 0,
+      "max": 1
+    },
+    "diseaseRecoverChance": {
+      "type": "number",
+      "label": "【疾病】自然恢复概率",
+      "description": "疾病减轻到初期后自愈的概率，0-1（0.3 = 30%）",
+      "min": 0,
+      "max": 1
+    },
+    "diseaseRelaxThreshold": {
+      "type": "number",
+      "label": "【疾病】关联放宽值",
+      "description": "有关联疾病时，触发条件放宽的数值（默认 15）",
+      "min": 0,
+      "max": 50
+    },
+    "seasonalDiseases": {
+      "type": "boolean",
+      "label": "【疾病】季节性疾病",
+      "description": "开启后按当前月份触发季节性疾病"
+    },
+    "autoSleep": {
+      "type": "boolean",
+      "label": "【作息】自动睡觉",
+      "description": "睡眠需求低时自动入睡，期间不回复消息"
+    },
+    "sleepSleepThreshold": {
+      "type": "number",
+      "label": "【作息】入睡阈值",
+      "description": "睡眠需求低于此值时入睡（默认 30）",
+      "min": 1,
+      "max": 50,
+      "default": 30
+    },
+    "sleepWakeThreshold": {
+      "type": "number",
+      "label": "【作息】醒来阈值",
+      "description": "睡眠需求高于此值时醒来（默认 80）",
+      "min": 50,
+      "max": 100,
+      "default": 80
+    },
+    "organDamageRate": {
+      "type": "number",
+      "label": "【器官】疾病损伤倍率",
+      "description": "疾病对器官的损伤速度，1 = 标准，越大器官坏得越快",
+      "min": 0,
+      "max": 5
+    },
+    "organRegenRate": {
+      "type": "number",
+      "label": "【器官】器官修复速度",
+      "description": "无病时器官每周期恢复量（默认 1.2）",
+      "min": 0,
+      "max": 10
+    },
+    "incubationEnabled": {
+      "type": "boolean",
+      "label": "【病原】潜伏期机制",
+      "description": "开启后病毒/细菌类疾病会先潜伏若干周期再发病"
+    },
+    "antibodyDays": {
+      "type": "number",
+      "label": "【免疫】抗体有效期（天）",
+      "description": "痊愈后获得的免疫记忆持续天数（默认 3）",
+      "min": 1,
+      "max": 365
+    },
+    "drugResistanceGain": {
+      "type": "number",
+      "label": "【用药】每次服药耐药性 +",
+      "description": "连续用药会降低药效，0-100（默认 12）",
+      "min": 0,
+      "max": 50
+    },
+    "drugResistanceDecay": {
+      "type": "number",
+      "label": "【用药】耐药性消退速度",
+      "description": "每周期耐药性自然下降量（默认 1）",
+      "min": 0,
+      "max": 20
+    },
+    "sideEffects": {
+      "type": "boolean",
+      "label": "【用药】药物副作用",
+      "description": "开启后吃药会伤器官/上瘾等副作用"
+    },
+    "constitution": {
+      "type": "string",
+      "label": "【体质】中医体质类型",
+      "description": "balanced 平和 / qixu 气虚 / yangxu 阳虚 / yinxu 阴虚 / tanshi 痰湿 / shire 湿热 / qiyu 气郁 / tebing 特禀"
+    },
+    "moneyInitial": {
+      "type": "number",
+      "label": "【经济】初始金钱",
+      "description": "机器人初始金钱（¥），用于就医/买药/疫苗",
+      "min": 0,
+      "max": 99999
+    },
+    "moneyAllowance": {
+      "type": "number",
+      "label": "【经济】每周期零钱",
+      "description": "每个衰减周期自动到账的零钱（默认 1，约 ¥720/月）。v12.0 起主要收入改为按发薪日一次性到账，这项降级为零钱杂项",
+      "min": 0,
+      "max": 1000
+    },
+    "costExam": {
+      "type": "number",
+      "label": "【经济】化验检查费",
+      "description": "做一次化验检查的花费（默认 30）",
+      "min": 0,
+      "max": 9999
+    },
+    "costCure": {
+      "type": "number",
+      "label": "【经济】看病挂号费",
+      "description": "就医一次的花费（默认 50）",
+      "min": 0,
+      "max": 9999
+    },
+    "costHospitalize": {
+      "type": "number",
+      "label": "【经济】住院押金",
+      "description": "住院治疗一次的花费（默认 200）",
+      "min": 0,
+      "max": 9999
+    },
+    "costVaccine": {
+      "type": "number",
+      "label": "【经济】疫苗接种费",
+      "description": "打一次疫苗的花费（默认 60）",
+      "min": 0,
+      "max": 9999
+    },
+    "costBlood": {
+      "type": "number",
+      "label": "【经济】抽血化验费",
+      "description": "做一次完整抽血化验的花费（默认 40）",
+      "min": 0,
+      "max": 9999
+    },
+    "weightInitial": {
+      "type": "number",
+      "label": "【生活】⚖️ 体重（kg）",
+      "description": "当前体重，影响 BMI 与血压/血脂基线；会随饮食运动缓慢变化",
+      "min": 20,
+      "max": 200
+    },
+    "heightInitial": {
+      "type": "number",
+      "label": "【生活】📏 身高（cm）",
+      "description": "身高，用于计算 BMI",
+      "min": 100,
+      "max": 220
+    },
+    "dietInitial": {
+      "type": "number",
+      "label": "【生活】🥗 饮食健康度",
+      "description": "0-100，越高越健康：明显影响血糖/血脂/尿酸；低于 45 容易得代谢病",
+      "min": 0,
+      "max": 100
+    },
+    "exerciseInitial": {
+      "type": "number",
+      "label": "【生活】🏃 运动习惯",
+      "description": "0-100，越高越好：影响血压/血脂/心肺；低于 45 容易得代谢病",
+      "min": 0,
+      "max": 100
+    },
+    "sleepQualityInitial": {
+      "type": "number",
+      "label": "【生活】😴 睡眠质量",
+      "description": "0-100，越高越好：影响血压与心率",
+      "min": 0,
+      "max": 100
+    },
+    "envEnabled": {
+      "type": "boolean",
+      "label": "【环境】启用环境系统",
+      "description": "开启后天气/气温/湿度/空气质量/紫外线会影响检验指标、疾病易感与心情"
+    },
+    "familyHistoryEnabled": {
+      "type": "boolean",
+      "label": "【遗传】启用家族病史",
+      "description": "开启后首次启动会随机生成 0~2 项家族遗传倾向，对应疾病易感 ×1.8"
+    },
+    "hospital": {
+      "type": "string",
+      "label": "【医疗】默认就诊医院",
+      "description": "community 社区医院 / general 市医院 / top 三甲医院 / tcm 中医院（也可用「换医院」切换）"
+    },
+    "nutrientDecay": {
+      "type": "number",
+      "label": "【营养】营养素每周期退化",
+      "description": "营养摄入合理度每周期自然下降量，饮食差时翻倍（默认 1）",
+      "min": 0,
+      "max": 10
+    },
+    "costSupplement": {
+      "type": "number",
+      "label": "【经济】营养品花费",
+      "description": "吃一次营养品的花费（默认 25）",
+      "min": 0,
+      "max": 9999
+    },
+    "anxietyDecay": {
+      "type": "number",
+      "label": "【衰减】😟 焦虑度每次衰减",
+      "description": "焦虑度自然缓解速度（默认 3）",
+      "min": 1,
+      "max": 50
+    },
+    "depressionDecay": {
+      "type": "number",
+      "label": "【衰减】🌧️ 抑郁度每次衰减",
+      "description": "抑郁度自然缓解速度（默认 2）",
+      "min": 1,
+      "max": 50
+    },
+    "stabilityDecay": {
+      "type": "number",
+      "label": "【衰减】🧘 情绪稳定每次衰减",
+      "description": "情绪稳定自然衰减速度（默认 3）",
+      "min": 1,
+      "max": 50
+    },
+    "focusDecay": {
+      "type": "number",
+      "label": "【衰减】🎯 专注力每次衰减",
+      "description": "专注力自然衰减速度（默认 4）",
+      "min": 1,
+      "max": 50
+    },
+    "sleepDebtDecay": {
+      "type": "number",
+      "label": "【衰减】😵 睡眠负债每次衰减",
+      "description": "睡眠负债自然消退速度（默认 1，主要靠睡眠修复）",
+      "min": 0,
+      "max": 50
+    },
+    "anxietyInitial": {
+      "type": "number",
+      "label": "【状态】😟 焦虑度（越低越好）",
+      "min": 0,
+      "max": 100,
+      "description": "修改后立即应用到机器人"
+    },
+    "depressionLevelInitial": {
+      "type": "number",
+      "label": "【状态】🌧️ 抑郁度（越低越好）",
+      "min": 0,
+      "max": 100,
+      "description": "修改后立即应用到机器人"
+    },
+    "stabilityInitial": {
+      "type": "number",
+      "label": "【状态】🧘 情绪稳定",
+      "min": 0,
+      "max": 100,
+      "description": "修改后立即应用到机器人"
+    },
+    "focusInitial": {
+      "type": "number",
+      "label": "【状态】🎯 专注力",
+      "min": 0,
+      "max": 100,
+      "description": "修改后立即应用到机器人"
+    },
+    "sleepDebtInitial": {
+      "type": "number",
+      "label": "【状态】😵 睡眠负债（越低越好）",
+      "min": 0,
+      "max": 100,
+      "description": "修改后立即应用到机器人"
+    },
+    "therapyCost": {
+      "type": "number",
+      "label": "【经济】心理咨询费",
+      "description": "做一次心理咨询的花费（默认 80）",
+      "min": 0,
+      "max": 9999
+    },
+    "melatoninCost": {
+      "type": "number",
+      "label": "【经济】褪黑素花费",
+      "description": "买一次褪黑素的花费（默认 30）",
+      "min": 0,
+      "max": 9999
+    },
+    "firstAidCost": {
+      "type": "number",
+      "label": "【经济】急救包扎费",
+      "description": "处理一次伤口的花费（默认 40）",
+      "min": 0,
+      "max": 9999
+    },
+    "disinfectCost": {
+      "type": "number",
+      "label": "【经济】消毒用品花费",
+      "description": "消毒一次的花费（默认 15）",
+      "min": 0,
+      "max": 9999
+    },
+    "quitCost": {
+      "type": "number",
+      "label": "【经济】戒除坏习惯花费",
+      "description": "戒除一次坏习惯的辅助花费（默认 60）",
+      "min": 0,
+      "max": 9999
+    },
+    "injuryEnabled": {
+      "type": "boolean",
+      "label": "【创伤】启用外伤系统",
+      "description": "开启后会有随机意外受伤（运动过度/极度疲劳/空气差时概率上升）"
+    },
+    "epidemicEnabled": {
+      "type": "boolean",
+      "label": "【疫情】启用社区疫情",
+      "description": "开启后社区会不定期爆发流行病，可通过口罩/消毒/隔离防护"
+    },
+    "habitEnabled": {
+      "type": "boolean",
+      "label": "【习惯】启用习惯系统",
+      "description": "开启后吸烟/饮酒/熬夜/久坐会持续损伤身体，好习惯会带来加成"
+    },
+    "achievementEnabled": {
+      "type": "boolean",
+      "label": "【成就】启用成就徽章",
+      "description": "开启后达到条件会解锁健康成就徽章"
+    },
+    "agingEnabled": {
+      "type": "boolean",
+      "label": "【年龄】启用年龄衰老",
+      "description": "开启后每满一年年龄 +1，30 岁后基础衰减随年龄上升"
+    },
+    "ageInitial": {
+      "type": "number",
+      "label": "【年龄】🎂 初始年龄",
+      "description": "机器人的年龄（默认 20）",
+      "min": 1,
+      "max": 150
+    },
+    "needDepthEnabled": {
+      "type": "boolean",
+      "label": "【深化】启用基础需求深化",
+      "description": "开启后 13 个基础维度会五阶段化，并产生维度间连锁反应与六项深层生理亚成分"
+    },
+    "cascadeRate": {
+      "type": "number",
+      "label": "【深化】连锁反应强度倍率",
+      "description": "基础需求告急时拖累其他维度的速度，1 = 标准，0 = 关闭连锁（默认 1）",
+      "min": 0,
+      "max": 5
+    },
+    "costElectrolyte": {
+      "type": "number",
+      "label": "【经济】电解质饮料花费",
+      "description": "补一次电解质的花费（默认 12）",
+      "min": 0,
+      "max": 9999
+    },
+    "electrolyteInitial": {
+      "type": "number",
+      "label": "【深化】🧂 电解质平衡",
+      "description": "0-100，越低越「喝不解渴」；喝白水会稀释，高温/出汗加速流失",
+      "min": 0,
+      "max": 100
+    },
+    "calorieSurplusInitial": {
+      "type": "number",
+      "label": "【深化】🍔 热量盈余（越低越好）",
+      "description": "0-100，吃太饱会累积、沉积为脂肪；运动与饥饿会消耗",
+      "min": 0,
+      "max": 100
+    },
+    "mentalFatigueInitial": {
+      "type": "number",
+      "label": "【深化】🧠 精神疲劳（越低越好）",
+      "description": "0-100，用脑与社交的消耗，靠睡眠/冥想/放松恢复",
+      "min": 0,
+      "max": 100
+    },
+    "intimacyInitial": {
+      "type": "number",
+      "label": "【深化】💞 亲密需求满足度",
+      "description": "0-100，浅层社交补不上，需要深聊/陪伴/聚会",
+      "min": 0,
+      "max": 100
+    },
+    "moodVolatilityInitial": {
+      "type": "number",
+      "label": "【深化】🎢 情绪波动（越低越好）",
+      "description": "0-100，情绪稳定度低时会上升，波动大易无端烦躁",
+      "min": 0,
+      "max": 100
+    },
+    "physicalReserveInitial": {
+      "type": "number",
+      "label": "【深化】🏋️ 体力储备",
+      "description": "0-100，运动的底子，越高越经得起熬夜与劳累",
+      "min": 0,
+      "max": 100
+    },
+    "reportImageEnabled": {
+      "type": "boolean",
+      "label": "【报表】图片化健康报告",
+      "description": "开启后 /健康 与「健康图片报表」工具会输出一张完整状态图（Electron 渲染）；关闭则退回纯文字报告。渲染失败时也会自动降级为文字"
+    },
+    "reportImageWidth": {
+      "type": "number",
+      "label": "【报表】图片宽度（px）",
+      "description": "报表图宽度，默认 900；越宽字越大图越清晰（480-1600）",
+      "min": 480,
+      "max": 1600
+    },
+    "circadianEnabled": {
+      "type": "boolean",
+      "label": "【节律】昼夜节律系统",
+      "description": "开启后状态衰减、激素分泌与专注力会跟随 24 小时真实生理曲线（皮质醇晨高夜低、褪黑素夜高昼低），替代原本简单的白天/夜晚二分"
+    },
+    "circadianOffsetInitial": {
+      "type": "number",
+      "label": "【节律】生物钟相位偏移（小时）",
+      "description": "正值=夜猫子型（生理节律比钟表晚，上午更懵），负值=早鸟型；会叠加睡眠生物钟的影响（-4~4）",
+      "min": -4,
+      "max": 4,
+      "step": 0.5
+    },
+    "gutEnabled": {
+      "type": "boolean",
+      "label": "【菌群】肠道菌群系统",
+      "description": "开启后新增六项肠道菌群，影响营养吸收率、免疫调节与情绪（肠脑轴）；抗生素会重创菌群，靠益生菌与高纤维饮食恢复"
+    },
+    "allergyEnabled": {
+      "type": "boolean",
+      "label": "【过敏】过敏系统",
+      "description": "开启后随机生成过敏谱（家族过敏史×3、特禀体质×2.5 概率），花粉季/潮湿/空气差/低温会推高过敏负荷，进而诱发过敏性鼻炎、荨麻疹、哮喘甚至过敏性休克"
+    },
+    "relationEnabled": {
+      "type": "boolean",
+      "label": "【关系】社交关系网",
+      "description": "开启后把羁绊升级为五类关系（家人/恋人/挚友/同事/群友），亲密度会随时间疏远、冷淡积累怨，可用深聊与和解修复，并反哺归属感与安全感"
+    },
+    "relationSeedCount": {
+      "type": "number",
+      "label": "【关系】初始关系数量",
+      "description": "首次运行时播下的初始关系数（妈妈/爸爸/挚友），0-3",
+      "min": 0,
+      "max": 3
+    },
+    "bioAgeEnabled": {
+      "type": "boolean",
+      "label": "【生物年龄】生理年龄推算",
+      "description": "开启后按器官/代谢/生活方式/习惯/心理/菌群/营养/外伤/过敏九类因素推算生理年龄，并与实际年龄对比（差值可正可负）"
+    },
+    "insuranceEnabled": {
+      "type": "boolean",
+      "label": "【医保】医疗保险系统",
+      "description": "开启后医疗费用可按医保方案报销（居民 50%/职工 75%/商业 90%，各有年度额度上限），办理医保需付年费"
+    },
+    "timelineEnabled": {
+      "type": "boolean",
+      "label": "【大事记】健康事件时间轴",
+      "description": "开启后自动记录首次患病、过生日、解锁成就、办理医保等关键节点，供对话时回忆引用（最多 60 条）"
+    },
+    "costProbiotics": {
+      "type": "number",
+      "label": "【花费】益生菌（¥）",
+      "description": "喝一次益生菌的金额，默认 15",
+      "min": 0,
+      "max": 500
+    },
+    "costAllergenTest": {
+      "type": "number",
+      "label": "【花费】过敏原检测（¥）",
+      "description": "做一次过敏原检测的金额，默认 80",
+      "min": 0,
+      "max": 2000
+    },
+    "costAntihistamine": {
+      "type": "number",
+      "label": "【花费】抗过敏药（¥）",
+      "description": "现买一盒抗过敏药的金额，默认 18（药箱有库存时不花钱）",
+      "min": 0,
+      "max": 500
+    },
+    "hobbyEnabled": {
+      "type": "boolean",
+      "label": "【爱好】爱好与技能树",
+      "description": "开启后可以学/练爱好：熟练度成长、作品产出、赠送给关系网；热情随时间消退，练过头会累积劳损并可能致病"
+    },
+    "hobbyLearnCost": {
+      "type": "number",
+      "label": "【爱好】学爱好的教材费（¥）",
+      "description": "每学一门爱好要付的基础教材/报名费，另加该爱好自身的器材费（10-80）",
+      "min": 0,
+      "max": 200
+    },
+    "hobbyMaxSlots": {
+      "type": "number",
+      "label": "【爱好】最多同时培养的爱好数",
+      "description": "槽位上限 1-9。满了要么放弃一个，要么在这里提高上限",
+      "min": 1,
+      "max": 9,
+      "step": 1
+    },
+    "hobbyPassionDecay": {
+      "type": "number",
+      "label": "【爱好】热情衰退速度",
+      "description": "每个衰减周期热情的下降量（0=永不消退）；超 3 天不练会按 2.2 倍加速",
+      "min": 0,
+      "max": 5,
+      "step": 0.1
+    },
+    "hobbyStrainDecay": {
+      "type": "number",
+      "label": "【爱好】劳损恢复速度",
+      "description": "每个衰减周期上肢劳损与视疲劳的恢复量；练得越勤越追不上",
+      "min": 0,
+      "max": 5,
+      "step": 0.1
+    },
+    "petEnabled": {
+      "type": "boolean",
+      "label": "【宠物】宠物养成",
+      "description": "开启后可以领养/照顾宠物：四维需求、成长阶段、疾病、技能与寿终，并影响主人的过敏与睡眠"
+    },
+    "petMaxCount": {
+      "type": "number",
+      "label": "【宠物】最多同时养几只",
+      "description": "名额上限 1-9；满了要先送走一只才能再领养",
+      "min": 1,
+      "max": 9,
+      "step": 1
+    },
+    "petAdoptCostMul": {
+      "type": "number",
+      "label": "【宠物】领养价格倍率",
+      "description": "各物种领养价（¥40-600）统一乘这个倍率，0 表示免费领养",
+      "min": 0,
+      "max": 5,
+      "step": 0.1
+    },
+    "petFoodCost": {
+      "type": "number",
+      "label": "【宠物】一份宠物粮（¥）",
+      "description": "每喂一次扣的钱；照顾难度 4 星以上的物种粮更贵",
+      "min": 0,
+      "max": 100
+    },
+    "petVetCost": {
+      "type": "number",
+      "label": "【宠物】宠物兽医基础费（¥）",
+      "description": "带宠物看病的基础诊疗费，按物种与病种数上浮；宠物医疗不走医保",
+      "min": 0,
+      "max": 500
+    },
+    "petNeedDecay": {
+      "type": "number",
+      "label": "【宠物】需求衰减速度倍率",
+      "description": "四维需求（饱食/饮水/清洁/心情）随真实时间衰减的速度，0=永远不饿",
+      "min": 0,
+      "max": 5,
+      "step": 0.1
+    },
+    "petAllergyFactor": {
+      "type": "number",
+      "label": "【宠物】掉毛对过敏负荷的影响倍率",
+      "description": "宠物皮屑/毛屑计入过敏负荷的倍率；对宠物皮屑过敏的人会被自己的宠物反复折腾",
+      "min": 0,
+      "max": 3,
+      "step": 0.1
+    },
+    "outfitEnabled": {
+      "type": "boolean",
+      "label": "【日常】穿衣系统",
+      "description": "开启后天气才有体感：按气温/天气/紫外线决定穿什么，穿错会冷着、热着、淋湿或晒伤"
+    },
+    "mealChoiceEnabled": {
+      "type": "boolean",
+      "label": "【日常】三餐选择",
+      "description": "开启后可以点菜（下厨/外卖/泡面/火锅…）；关闭则吃饭仍由随机决定"
+    },
+    "mealCostMul": {
+      "type": "number",
+      "label": "【日常】菜品价格倍率",
+      "description": "各菜品标价统一乘这个倍率，用来调节日常吃饭的负担（0 = 吃饭不花钱）",
+      "min": 0,
+      "max": 3,
+      "step": 0.1
+    },
+    "homeEnabled": {
+      "type": "boolean",
+      "label": "【日常】房间与家务",
+      "description": "开启后房间会变乱、衣服会变脏：整洁度低会放大尘螨过敏负荷，宠物掉毛会加速弄脏房间"
+    },
+    "homeTidyDecay": {
+      "type": "number",
+      "label": "【日常】房间变乱速度",
+      "description": "每个衰减周期整洁度掉多少（0 = 永远不用打扫）",
+      "min": 0,
+      "max": 5,
+      "step": 0.05
+    },
+    "costHireCleaner": {
+      "type": "number",
+      "label": "【日常】请保洁一次（¥）",
+      "description": "花这笔钱可以一次把房间整洁、衣物洁净与待洗碗全部解决",
+      "min": 0,
+      "max": 1000
+    },
+    "billsEnabled": {
+      "type": "boolean",
+      "label": "【日常】每月账单",
+      "description": "开启后每月自动结算房租/水电/网费/伙食；欠费会持续磨损压力与安全感"
+    },
+    "billMonthlyTotal": {
+      "type": "number",
+      "label": "【日常】每月账单合计（¥）",
+      "description": "默认 ¥2850，按房租/水电/网费/伙食的原比例分摊。月薪默认 ¥3600，调到 0 即免去生活压力",
+      "min": 0,
+      "max": 99999
+    },
+    "salaryEnabled": {
+      "type": "boolean",
+      "label": "【经济】发薪日",
+      "description": "开启后按月发薪（每 30 天一次性到账，与账单同周期）。关闭则只剩零钱与打工/接单收入"
+    },
+    "salaryMonthly": {
+      "type": "number",
+      "label": "【经济】月薪（¥）",
+      "description": "每个发薪日到账的金额，默认 ¥3600（账单默认 ¥2850）。调到 0 就是完全靠打工与接单过活",
+      "min": 0,
+      "max": 999999
+    },
+    "gigEnabled": {
+      "type": "boolean",
+      "label": "【经济】技艺变现",
+      "description": "开启后可用练到 2~3 级的产出型爱好（画画/摄影/编程/吉他/做饭等 12 门）接单赚钱"
+    },
+    "gigPayMul": {
+      "type": "number",
+      "label": "【经济】接单收入倍率",
+      "description": "整体缩放接单收入，默认 1（0.5 是行情差，2 是手艺很吃香）",
+      "min": 0,
+      "max": 10,
+      "step": 0.1
+    },
+    "gigCooldownHours": {
+      "type": "number",
+      "label": "【经济】接单冷却（小时）",
+      "description": "接完一单要隔多久才能接下一单，默认 10 小时（0 = 不限）",
+      "min": 0,
+      "max": 168,
+      "step": 0.5
+    },
+    "ledgerEnabled": {
+      "type": "boolean",
+      "label": "【经济】收支账本",
+      "description": "记录每一笔收入与支出，可查本月/累计净结余与流水（关闭则报表不显示收支卡片）"
+    },
+    "weekdayEnabled": {
+      "type": "boolean",
+      "label": "【时间】星期节律",
+      "description": "开启后区分工作日与周末：周末心情与舒适度缓慢回升、社交欲望更强，周一压力最明显；也决定「睡懒觉」加成与打工的周末加成是否生效"
+    },
+    "festivalEnabled": {
+      "type": "boolean",
+      "label": "【时间】节日",
+      "description": "开启后公历节日（元旦/情人节/劳动节/国庆/双十一/圣诞等 11 个）与农历节日（春节/元宵/端午/七夕/中秋/重阳等，按公历年月日查表）当天触发心情与社交加成，并抬高或压低当天物价，影响三餐花费"
+    },
+    "extremeEnabled": {
+      "type": "boolean",
+      "label": "【时间】极端天气",
+      "description": "开启后会小概率刮起高温预警/寒潮/暴雨/台风/沙尘暴，直接改写气温、湿度、空气质量与紫外线，压低舒适度与心情，并提高对应疾病的易感"
+    },
+    "extremeChance": {
+      "type": "number",
+      "label": "【时间】极端天气概率",
+      "description": "每次环境刷新（约每 3 小时）触发极端天气的概率，默认 0.02 —— 折算下来平均约 1/7 的日子会遇到。调到 0 等于关闭，调到 0.1 就天天有灾",
+      "min": 0,
+      "max": 1,
+      "step": 0.01
+    }
+  }
+}

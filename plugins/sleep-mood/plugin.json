@@ -1,0 +1,120 @@
+{
+  "id": "sleep-mood",
+  "name": "睡眠与心情系统（融合版）",
+  "version": "1.0.1",
+  "apiVersion": 1,
+  "category": "utility",
+  "description": "mood-chain 与 sleep-mode 的融合版：统一「睡眠」真相源。命令睡眠（@我 /睡觉）走入站闸门零 token；自然睡眠（她说要睡/作息表到点）走睡眠闸拦发送。两级拦截按「谁在睡」自动选择，唤醒口令与 /起床 共用一条起床路径，并自动补处理积压消息。 控制台新增「心情」页，实时显示当前心情、生活状态和关键指标；启用后会自动初始化并在对话中读取/更新心情。",
+  "author": "C2 / 移植适配 + 融合",
+  "enabledByDefault": false,
+  "capabilities": [
+    "message.inbound-gate",
+    "mood.dashboard"
+  ],
+  "settings": {
+    "enabled": true,
+    "inject": true,
+    "tickSeconds": 60,
+    "blockWhileSleeping": true,
+    "ignoreWhileSleeping": true,
+    "wakeWords": "起床 醒醒 别睡了",
+    "selfState": true,
+    "ownerQq": "",
+    "sleepCommand": "/睡觉",
+    "wakeCommand": "/起床",
+    "sleepKeywords": "睡觉 睡了 去睡 睡觉了 睡吧 我睡了 晚安 困了 睡觉吧 休息了",
+    "wakeKeywords": "起床 醒了 醒醒 起来 别睡 别睡了 起床了 我醒了 该起了",
+    "resumeCount": 20,
+    "confirm": true,
+    "commandSleepHard": true,
+    "lockWakeToOwner": false
+  },
+  "configSchema": {
+    "enabled": {
+      "type": "boolean",
+      "label": "启用心情系统",
+      "description": "总开关。关掉后不再观察、不再推进、不再注入，已有数值留在磁盘上不删。"
+    },
+    "inject": {
+      "type": "boolean",
+      "label": "注入演出指引",
+      "description": "把当前数值翻译成「你现在是什么状态、该怎么说话」写进提示词。关掉就只算不用（调试用）。"
+    },
+    "tickSeconds": {
+      "type": "number",
+      "label": "心跳间隔（秒）",
+      "description": "后台推进衰减钟、疲劳、作息表的间隔，默认 60。调太小没有意义。",
+      "min": 15,
+      "max": 600
+    },
+    "blockWhileSleeping": {
+      "type": "boolean",
+      "label": "睡眠时禁止发言",
+      "description": "开启后，她处于自然睡眠（sleeping）状态时拦住发送类工具（有人喊醒才放行）。这是内层兜底闸。"
+    },
+    "ignoreWhileSleeping": {
+      "type": "boolean",
+      "label": "睡眠时底层忽略（省 token）",
+      "description": "⭐ 开启后，她自然睡眠时普通消息在【入站就拦掉】：不建会话、不调模型，零 token 消耗。消息**保持未读**，她醒来后会统一补看（睡越久积压越多，日志里会报条数）。喊醒词/接触词、主人的起床口令、@我 /起床 依然能叫醒她。关闭 = 退回旧行为：消息照样送模型、只在发送那一步拦住 —— 会白烧 token，不建议。"
+    },
+    "wakeWords": {
+      "type": "string",
+      "multiline": true,
+      "label": "主人起床口令",
+      "description": "主人发的话里只要包含其中任一个词，她就立刻起床（状态转清醒，并按「刚被叫醒、迷迷糊糊」演约 30 分钟）。多个口令用空格/逗号/换行分隔；留空 = 关闭这个功能。只认主人，群里别人喊无效，且主人不必 @ 她。⚠️ 越短的词越容易误触发，想要精准就往口令里带上称呼。"
+    },
+    "selfState": {
+      "type": "boolean",
+      "label": "全局自身状态机",
+      "description": "让她记得自己「现在在干什么」（睡觉/在忙/刚醒），跨群跨私聊一致，不再自相矛盾。"
+    },
+    "ownerQq": {
+      "type": "string",
+      "label": "主人 QQ 号",
+      "description": "留空则自动尝试从 owner-identity 能力获取。用于「护亲」判定与起床口令鉴权。"
+    },
+    "sleepKeywords": {
+      "type": "string",
+      "multiline": true,
+      "label": "⭐ 进入睡眠的关键词",
+      "description": "群里 @机器人 后，消息里包含其中**任意一个**词就进入【命令睡眠】：消息照常存档但完全不送大模型（零 token），全局生效。多个词用空格/逗号/换行分隔。⚠️ 越短越容易命中（「睡觉」二字即可）；但太短也容易误触（“我去睡觉了”“你该睡觉了”都会中）—— 命中**必须 @机器人**，所以群里聊天不会误触发。留空则回退用下面的旧「睡眠指令」。"
+    },
+    "wakeKeywords": {
+      "type": "string",
+      "multiline": true,
+      "label": "⭐ 唤醒的关键词",
+      "description": "睡眠中 @机器人 后，消息里包含其中任意一个词即解除命令睡眠，并自动补处理每个群最近的 N 条消息。多个词用空格/逗号/换行分隔，越短越容易命中。留空则回退用下面的旧「唤醒指令」。"
+    },
+    "sleepCommand": {
+      "type": "string",
+      "label": "睡眠指令（旧版兼容）",
+      "description": "旧版的单条精确指令。仅在「进入睡眠的关键词」留空时生效（斜杠写法天然兼容，因为「睡觉」是「/睡觉」的子串）。"
+    },
+    "wakeCommand": {
+      "type": "string",
+      "label": "唤醒指令（旧版兼容）",
+      "description": "旧版的单条精确指令。仅在「唤醒的关键词」留空时生效。"
+    },
+    "resumeCount": {
+      "type": "number",
+      "label": "唤醒补处理条数",
+      "description": "退出命令睡眠后，每个有未读消息的群只把最新 N 条发给模型处理（其余标记为已读，沉入历史不重复触发）。"
+    },
+    "confirm": {
+      "type": "boolean",
+      "label": "开关确认消息",
+      "description": "进入/退出命令睡眠时，在触发群发送一条确认消息。"
+    },
+    "commandSleepHard": {
+      "type": "boolean",
+      "label": "命令睡眠强制生效",
+      "description": "开启后，命令睡眠期间无视主人起床口令以外的任何唤醒词，谁说话都不处理，直到用唤醒关键词。关闭则命令睡眠期间仍允许「被喊醒」的消息送模型。"
+    },
+    "lockWakeToOwner": {
+      "type": "boolean",
+      "label": "仅主人可唤醒",
+      "description": "开启后，/起床 只有主人（ownerQq 或 owner-identity）能触发，群里别人发无效。默认关闭 = 群内任何人 @机器人 /起床 都能唤醒。"
+    }
+  },
+  "prompt": null
+}

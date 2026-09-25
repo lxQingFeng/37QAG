@@ -1,0 +1,47 @@
+{
+  "patchVersion": 6,
+  "files": {
+    "src/app.js": {
+      "backup": "src__app.js__app.js",
+      "originalSha256": "46481cbc98b5908b097e08b30b5bedfb26a64aa99a3cf7233ee0640f0f561eca",
+      "firstBackedUpAt": "2026-09-23T17:42:58.532Z",
+      "patchedSha256": "04e73c61698dd0c02113c3e4930994611e991c4f50a500ed48d5fd690fd99051",
+      "appliedAt": "2026-09-23T17:42:58.532Z"
+    },
+    "src/skills/manifest.js": {
+      "backup": "src__skills__manifest.js__manifest.js",
+      "originalSha256": "71f9787f99e025ca2dc8c58ee3d1bfa74cbf545647fb111f31d897e314791f68",
+      "firstBackedUpAt": "2026-09-23T17:42:58.532Z",
+      "patchedSha256": "f8bc5298c97931d98fcf7f0f1211a5c5bbeec293a9fd954afd7639c147e8537a",
+      "appliedAt": "2026-09-23T17:42:58.532Z"
+    },
+    "src/skills/manager.js": {
+      "backup": "src__skills__manager.js__manager.js",
+      "originalSha256": "b191170b40b41a2183b38d73a9b825c1767518ee83221cb4c64d153d4c73d07f",
+      "firstBackedUpAt": "2026-09-23T17:42:58.532Z",
+      "patchedSha256": "975a5e4f2c5d3688d4f83fdc7122c928bfaba3a22b0867139bd11dd9c6181dd1",
+      "appliedAt": "2026-09-23T17:42:58.532Z"
+    },
+    "src/plugin-loader.js": {
+      "backup": "src__plugin-loader.js__plugin-loader.js",
+      "originalSha256": "7fc9e320d4046d07e20d17e1534713235b289801075a626995d51991fae5d14a",
+      "firstBackedUpAt": "2026-09-23T17:42:58.532Z",
+      "patchedSha256": "b03cb5dc18bc2b7fc5325d6b059ef35e1656f28352f17d78f75b00e897861e5d",
+      "appliedAt": "2026-09-23T17:42:58.532Z"
+    },
+    "ui/app.js": {
+      "backup": "ui__app.js__app.js",
+      "originalSha256": "8d7c3b52d3b55a55711a96f9ae3966f67cfedae5206ba99f57515830d4b8e8c4",
+      "firstBackedUpAt": "2026-09-23T17:42:58.532Z",
+      "patchedSha256": "a6f48566a158ac654449015fc7f4675cafd6230cd0afef3e7cbfc06e02bea60a",
+      "appliedAt": "2026-09-23T17:42:58.532Z"
+    },
+    "electron/main.js": {
+      "backup": "electron__main.js__main.js",
+      "originalSha256": "0689e3d1d0f25f0d92a60539dfafdfe5122681a4b59258795cfa97ab65655bce",
+      "firstBackedUpAt": "2026-09-23T17:42:58.532Z",
+      "patchedSha256": "c84e663811dbfdffe2011d65575ae00a694d1e2dc3a1e14b11d9984ee4bef987",
+      "appliedAt": "2026-09-23T17:42:58.532Z"
+    }
+  }
+}

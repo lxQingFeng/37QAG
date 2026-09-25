@@ -1,0 +1,45 @@
+{
+  "name": "37qag",
+  "version": "0.5.0",
+  "private": false,
+  "description": "37QAG：整合 Jev 决策树、来源化记忆与任务闭环的 QQ 群 Agent。",
+  "type": "module",
+  "main": "electron/main.js",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "start": "electron .",
+    "server": "node src/server.js",
+    "test": "node --test test/decision-policy-test.mjs test/run-context-test.mjs test/memory-evidence-test.mjs test/memory-time-test.mjs test/task-ledger-test.mjs test/tool-scope-test.mjs test/community-plugin-test.mjs test/forward-message-test.mjs test/logger-test.mjs test/sticker-display-test.mjs test/stability-fixes-test.mjs test/skill-tool-compression-test.mjs",
+    "check": "node --check src/decision-policy.js && node --check src/run-context.js && node --check src/memory-evidence.js && node --check src/task-ledger.js && node --check src/local-jev.js && node --check src/salvage.js && node --check src/memory.js && node --check src/tools.js && node --check src/orchestrator.js && node --check src/onebot.js && node --check src/logger.js && node --check src/app.js && node --check src/server.js && node --check src/prompt.js && node --check src/prompt-cleaned.js && node --check src/plugin-loader.js && node --check src/config.js && node --check src/personas.js && node --check src/local-reply-policy.js && node --check src/llm.js && node --check src/tool-role-sync.js && node --check src/skill-bridge.js && node --check plugins/health-system/index.js && node --check electron/main.js && node --check ui/app.js"
+  },
+  "dependencies": {
+    "js-yaml": "^5.4.1",
+    "undici": "^6.28.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0"
+  },
+  "license": "MIT",
+  "author": "Kondius",
+  "keywords": [
+    "qq",
+    "bot",
+    "agent",
+    "openai",
+    "onebot",
+    "llm",
+    "desktop",
+    "electron"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lxQingFeng/37QAG.git"
+  },
+  "bugs": {
+    "url": "https://github.com/lxQingFeng/37QAG/issues"
+  },
+  "homepage": "https://github.com/lxQingFeng/37QAG#readme"
+}
