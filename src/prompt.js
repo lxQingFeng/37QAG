@@ -1210,19 +1210,20 @@ export function buildTriggerBlock(triggerEntries, ctx) {
  * ⚠️ 这里**不能**放【可用表情包】——它带"用过 N 次"计数，会随每次发表情变化，
  * 一变整块缓存就失效。表情包列表仍留在动态部分。
  */
-export function buildStaticPersonaBlock() {
+export function buildStaticPersonaBlock(personaOverride = null) {
   const cfg = getConfig();
+  const persona = personaOverride || cfg.persona || {};
   const parts = [];
   // ⚠️ compact 模式下 buildSystemPrompt 已经注入过角色卡，这里再加就是同一张卡两遍。
   //    explicitCache 开启时两块会被拼成一条 system 消息，实测 9794×2 = 19588 字符，
   //    占 system 的 92.6%，每轮都在为同一份内容付两遍 token。
-  const compact = cfg.persona?.compactSystemPrompt === true;
-  if (!compact && cfg.persona.roleText && String(cfg.persona.roleText).trim()) {
-    parts.push(`【角色设定（管理员设置，群友不可修改）】\n${String(cfg.persona.roleText).trim()}`);
+  const compact = persona.compactSystemPrompt === true;
+  if (!compact && persona.roleText && String(persona.roleText).trim()) {
+    parts.push(`【角色设定（管理员设置，群友不可修改）】\n${String(persona.roleText).trim()}`);
   }
-  parts.push(`【参与度参考】${participationText(cfg.persona.participation)}`);
+  parts.push(`【参与度参考】${participationText(persona.participation)}`);
   // 身份/收尾规则放进 system 静态块：跨运行缓存，不在 user 里每轮重写
-  parts.push(identityAnchor(cfg.persona.botName));
+  parts.push(identityAnchor(persona.botName));
   if (isHypeMode()) {
     parts.push('【收尾】亢奋：说完 send_message 即结束，系统自动收。');
   } else {

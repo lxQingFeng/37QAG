@@ -203,7 +203,12 @@ test('系统提示把 37 表述为人类，并把 37 当作名字', () => {
   assert.match(full, /普通人类群友/);
   assert.doesNotMatch(full, /你是「37」|你就是「37」/);
 
-  const staticPersona = buildStaticPersonaBlock();
+  const staticPersona = buildStaticPersonaBlock({
+    ...DEFAULT_CONFIG.persona,
+    botName: '37',
+    roleText: PERSONAS.qag37.text,
+    compactSystemPrompt: false
+  });
   assert.match(staticPersona, /你的名字是 37/);
   assert.doesNotMatch(staticPersona, /你是 37|你就是 37|你是「37」|你就是「37」/);
 
