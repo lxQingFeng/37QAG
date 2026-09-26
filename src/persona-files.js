@@ -96,6 +96,21 @@ export function parsePersonaFile(file) {
 /** data/personas/ 支持的人设文件扩展名（导入与目录扫描共用白名单）。 */
 export const PERSONA_FILE_EXTS = ['.md', '.txt', '.json'];
 
+/**
+ * 校验控制台导入的文件名。只接受当前目录下的 .md/.txt/.json 文件名，
+ * 明确拒绝路径分隔符、盘符、绝对路径和控制字符；不做“裁剪后接受”，避免
+ * `../x.txt` 这类输入被静默改名后落盘。
+ */
+export function validatePersonaImportFilename(rawName) {
+  const raw = String(rawName ?? '').trim();
+  const cleaned = raw.replace(/[\u0000-\u001f\u007f]/g, '');
+  const ext = path.extname(raw).toLowerCase();
+  if (!raw || raw !== cleaned || raw === '.' || raw === '..') return null;
+  if (raw.includes('/') || raw.includes('\\') || path.isAbsolute(raw) || path.win32.isAbsolute(raw)) return null;
+  if (!PERSONA_FILE_EXTS.includes(ext)) return null;
+  return raw;
+}
+
 /** 扫描 data/personas/ 下全部人设文件（坏文件跳过并警告，不崩）。 */
 export function listFilePersonas({ log = () => {} } = {}) {
   const dir = personasDir();

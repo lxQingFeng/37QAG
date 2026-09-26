@@ -8,10 +8,10 @@ import { test } from 'node:test';
 import assert from 'node:assert';
 import fs from 'node:fs';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { execFileSync } from 'node:child_process';
 
-const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 test('start.mjs：参数分支与日志路径（源码断言）', () => {
   const src = fs.readFileSync(path.join(ROOT, 'scripts', 'start.mjs'), 'utf8');
@@ -54,6 +54,9 @@ test('Linux 启动脚本存在且可执行', () => {
   for (const name of ['启动-单号.sh', '启动-双号.sh', '启动-单号-调试模式.sh']) {
     const p = path.join(ROOT, name);
     assert.ok(fs.existsSync(p), `${name} 应存在`);
-    assert.ok(fs.statSync(p).mode & 0o111, `${name} 应有执行位`);
+    // Windows 文件系统不保留 POSIX 执行位，执行位仅在 POSIX 平台校验。
+    if (process.platform !== 'win32') {
+      assert.ok(fs.statSync(p).mode & 0o111, `${name} 应有执行位`);
+    }
   }
 });

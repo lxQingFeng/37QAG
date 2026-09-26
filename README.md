@@ -4,7 +4,7 @@
 
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D20-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
 [![Electron](https://img.shields.io/badge/Electron-33.x-47848F?logo=electron&logoColor=white)](https://www.electronjs.org/)
-[![Tests](https://img.shields.io/badge/tests-54%20passed-brightgreen)](#检查与测试)
+[![Tests](https://img.shields.io/badge/tests-157%20passed-brightgreen)](#检查与测试)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 37QAG 以“QQ-Agent-整合版-20260922”为稳定运行基线，整合 Jev 决策树、来源化记忆和任务闭环，并参考“QQ-Agent 0.4 preview”的长期扩展设计。当前版本为 **37QAG 0.5.0**。
@@ -366,7 +366,7 @@ npm run check
 npm test
 ```
 
-当前测试套件包含 **142 项测试**（23 个测试文件，白名单注册于 `package.json` 的 `scripts.test`，新增测试文件需同步登记），覆盖：
+当前测试套件包含 **157 项测试**（24 个测试文件，白名单注册于 `package.json` 的 `scripts.test`，新增测试文件需同步登记），覆盖：
 
 - 参与路线与 Jev 否决边界；
 - RunContext 预算、截止时间和取消；

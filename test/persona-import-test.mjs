@@ -18,7 +18,8 @@ const {
   parsePersonaFile,
   listFilePersonas,
   mergedPersonaTemplates,
-  PERSONA_FILE_EXTS
+  PERSONA_FILE_EXTS,
+  validatePersonaImportFilename
 } = await import('../src/persona-files.js');
 const { sanitizeRoleText } = await import('../src/prompt.js');
 const { personasDir } = await import('../src/paths.js');
@@ -91,6 +92,15 @@ test('.json 人设：{name,text} 解析，兼容 roleText 字段（与 customPer
   assert.match(p.text, /你是猫/);
   const p2 = parsePersonaContent('old.json', JSON.stringify({ name: '旧格式', roleText: '旧字段卡' }));
   assert.equal(p2.text, '旧字段卡');
+});
+
+test('导入文件名白名单：路径穿越、盘符、控制字符和乱后缀明确拒绝', () => {
+  assert.equal(validatePersonaImportFilename('本地测试员.txt'), '本地测试员.txt');
+  assert.equal(validatePersonaImportFilename('../escape.txt'), null);
+  assert.equal(validatePersonaImportFilename('folder/name.md'), null);
+  assert.equal(validatePersonaImportFilename('C:\\persona.json'), null);
+  assert.equal(validatePersonaImportFilename('bad\u0000name.txt'), null);
+  assert.equal(validatePersonaImportFilename('bad.docx'), null);
 });
 
 test('坏文件全部跳过不崩：空文件 / 坏 JSON / 缺正文的 JSON / 乱后缀', () => {

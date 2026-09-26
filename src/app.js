@@ -27,7 +27,7 @@ import { getConversationMemory, startConversationMemoryMaintenance, stopConversa
 import { loadModules, disposeModules, moduleStatus, watchModules } from './module-loader.js';
 import { matchRoute } from './module-registry.js';
 import { migrateLegacyLayout, personasDir } from './paths.js';
-import { seedBuiltinPersonas, mergedPersonaTemplates, parsePersonaContent, PERSONA_FILE_EXTS } from './persona-files.js';
+import { seedBuiltinPersonas, mergedPersonaTemplates, parsePersonaContent, validatePersonaImportFilename } from './persona-files.js';
 import { costGuardStats } from './conversation-memory/cost-guard.js';
 import { activeTodos } from './conversation-memory/pending.js';
 import { listAllMemes, saveMeme, removeMeme, memeCount } from './memes.js';
@@ -1813,12 +1813,11 @@ function selfDescriptor() {
       // 与上面的 POST（config.customPersonas）共存：导入落文件层，删除 = 删文件，config 不动。
       if (pathname === '/api/persona-templates/import' && method === 'POST') {
         const body = await readBody(req).catch(() => ({}));
-        // 文件名白名单：basename（防路径穿越）+ 扩展名校验 + 去控制字符
+        // 文件名白名单：仅当前目录下的白名单后缀，路径穿越/盘符/控制字符直接拒绝。
         const rawName = String(body.filename ?? '').trim();
-        const safeName = path.basename(rawName).replace(/[\u0000-\u001f\u007f]/g, '');
-        const ext = path.extname(safeName).toLowerCase();
-        if (!safeName || safeName === '.' || safeName === '..' || !PERSONA_FILE_EXTS.includes(ext)) {
-          return json(res, 400, { ok: false, error: '文件名不合法（支持 .txt / .md / .json）' });
+        const safeName = validatePersonaImportFilename(rawName);
+        if (!safeName) {
+          return json(res, 400, { ok: false, error: '文件名不合法（仅支持当前目录下的 .txt / .md / .json）' });
         }
         const content = String(body.content ?? '');
         if (!content.trim()) return json(res, 400, { ok: false, error: '文件内容为空' });
