@@ -221,6 +221,81 @@ function extractContentBlockText(s) {
   return '';
 }
 
+/** 从 JSON/工具外壳里取出双引号字符串字面量；坏掉的尾括号不影响取正文。 */
+function extractJsonStringLiterals(text) {
+  const out = [];
+  const re = /"((?:\\.|[^"\\])*)"/g;
+  let match;
+  while ((match = re.exec(String(text ?? '')))) {
+    try {
+      const parsed = JSON.parse(`"${match[1]}"`);
+      if (typeof parsed === 'string' && parsed.trim()) out.push(parsed.trim());
+    } catch { /* 流式碎片里的半个转义串，跳过 */ }
+  }
+  return out;
+}
+
+const TOOL_ARG_KEYS = new Set([
+  'messages', 'message', 'text', 'content', 'replyToMessageId', 'atUserId', 'stickerId', 'tool'
+]);
+
+/**
+ * 模型偶尔把 messages 写成“字符串里的数组”，还会多带一个尾括号：
+ *   ["那不行 名字磨没了我找谁吵架去"}   ← JSON.parse 失败，但正文完整可救。
+ * 这里只在数组/对象外壳里抠正文，工具名和消息 id 不当正文。
+ */
+function recoverLooseJsonMessages(input) {
+  const t = String(input ?? '').trim();
+  if (!t || !/^[[{]/.test(t)) return [];
+
+  // 优先只看 messages 的值。
+  const prop = /["']messages["']\s*:\s*/i.exec(t);
+  if (prop) {
+    const rest = t.slice(prop.index + prop[0].length).trim();
+    const closed = rest.replace(/[}\]]+\s*$/, () => (rest.startsWith('[') ? ']' : '}'));
+    try {
+      const parsed = JSON.parse(closed);
+      const normalized = Array.isArray(parsed)
+        ? parsed.map(coerceMessageText).filter(Boolean)
+        : (typeof parsed === 'string' && /^[[{]/.test(parsed.trim())
+          ? recoverLooseJsonMessages(parsed)
+          : [coerceMessageText(parsed)].filter(Boolean));
+      if (normalized.length) return normalized;
+    } catch {
+      // 继续走宽松抠字面量；若 rest 本身是 JSON 字符串，递归解出里面的数组。
+      const inner = extractJsonStringLiterals(rest);
+      const nested = inner.flatMap((s) => recoverLooseJsonMessages(s));
+      if (nested.length) return nested;
+    }
+  }
+
+  const literals = extractJsonStringLiterals(t);
+  return literals
+    .flatMap((s) => {
+      if (/^[[{]/.test(s)) {
+        const nested = recoverLooseJsonMessages(s);
+        return nested.length ? nested : [s];
+      }
+      return [s];
+    })
+    .filter((s) => !TOOL_ARG_KEYS.has(s) && !/^\d+$/.test(s));
+}
+
+/** 被引用的记录是否是机器人自己发的（旧记录无字段时按 senderId 兼容判断）。 */
+export function resolveReplyTargetSelf({ known = null, senderId = '', selfId = '' } = {}) {
+  if (known && typeof known === 'object' && typeof known.self === 'boolean') return known.self;
+  const sid = String(selfId ?? '').trim();
+  const from = String(senderId ?? '').trim();
+  return Boolean(sid && from && sid === from);
+}
+
+/** 入站消息的引用是否明确指向机器人自己的旧发言。 */
+export function isReplyTargetedToSelf({ reply = null, selfId = '' } = {}) {
+  if (!reply || typeof reply !== 'object') return false;
+  if (typeof reply.targetSelf === 'boolean') return reply.targetSelf;
+  return resolveReplyTargetSelf({ known: reply, senderId: reply.senderId, selfId });
+}
+
 /** 整批是否像「内容块被切碎后当消息发」——是则丢弃并让上层报错。 */
 export function looksLikeContentBlockSpam(messages) {
   if (!Array.isArray(messages) || messages.length < 3) return false;
@@ -239,11 +314,16 @@ export function normalizeMessageList(input) {
   let value = input;
   if (typeof value === 'string') {
     const trimmed = value.trim();
-    if (trimmed.startsWith('[')) {
+    if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
       try {
         const parsed = JSON.parse(trimmed);
         if (Array.isArray(parsed)) value = parsed;
-      } catch { /* 保持字符串；下面再试宽松抠 text */ }
+        else if (typeof parsed === 'string') value = parsed;
+        else if (parsed && typeof parsed === 'object' && Object.hasOwn(parsed, 'messages')) value = normalizeMessageList(parsed.messages);
+      } catch {
+        const recovered = recoverLooseJsonMessages(trimmed);
+        if (recovered.length) value = recovered;
+      }
     } else if (trimmed.startsWith('"')) {
       const unquoted = unquoteJsonString(trimmed);
       if (typeof unquoted === 'string') value = unquoted;

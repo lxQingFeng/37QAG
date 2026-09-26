@@ -2045,9 +2045,9 @@ export function resolveReplyChanceParams(rc = {}, heat = null, dicePercent = nul
   //   · 第二版改成加权（高意愿 0.9 意愿 + 0.1 活跃度），仍然会在热闹群里把门槛抬高。
   //   用户实测反馈原话：「90 的回应率都很低」「响应概率和自适应联动冲突了」。
   // 现在一句话能说清：**意愿是主，自适应只能在窄带里调制**（见下面的 band）——
-  //   · 门槛最多 ±0.08 概率 / ±0.40 间隔；
-  //   · 频率最多 0.7~1.3 倍上限、0.7~1.35 倍冷却；
-  //   · 热度先做 h^1.6 折算：中等活跃仍按用户意愿走，只有真刷屏才收紧。
+  //   · 门槛最多向低 0.08 概率 / 0.40 间隔（只会更愿意接话）；
+  //   · 频率只放宽到最多 1.3 倍上限、最短 0.7 倍冷却，不会压回意愿值；
+  //   · 热度先做 h^1.6 折算：中等活跃仍按用户意愿走，热闹时也只保持意愿底线。
   // 于是「意愿 90%」在任何群里都至少有九成该有的机会，低意愿（5%）也照样很挑。
   //
   // 实现上就是四个 min/max：自适应那组值只在"比意愿更宽松"时才被采用
@@ -2059,27 +2059,27 @@ export function resolveReplyChanceParams(rc = {}, heat = null, dicePercent = nul
     const s = 1 - pct / 100;              // 严格度：0 = 最主动，1 = 最挑
     const wantConf = 0.5 + s * 0.5;       // 100% → 0.50；5% → 0.975；1% → 0.995
     const wantMargin = 0.8 + s * 4.0;     // 100% → 0.80；5% → 4.60
-    const wantCap = Math.max(1, Math.round(pct / 10));      // 100% → 10 次/时；30% → 3
-    const wantCd = Math.round(60000 + s * 540000);          // 100% → 60s；5% → 9.5min
+    const wantCap = Math.max(1, Math.round(pct / 5));       // 100% → 20 次/时；60% → 12
+    const wantCd = Math.round(30000 + s * 120000);          // 100% → 30s；60% → 78s
 
     // ── 单边联动：意愿是主，自适应只能在**有界的范围内**调制 ──
     // 自适应那组值（界面上的冷清端/热闹端）仍然参与计算方向与力度，但每一项都被夹进
     // 意愿值附近的一条带子里 —— 于是"热闹了更克制、冷清了更主动"还在，
     // 却再也不可能把用户显式设的意愿整个吃掉（这正是"90 的回应率都很低"的根因）。
-    //   概率门槛 ±0.08 · 间隔门槛 ±0.40 · 每小时上限 0.7~1.3 倍 · 冷却 0.7~1.35 倍
+    //   只允许放宽：概率门槛最多低 0.08、间隔门槛最多低 0.40、
+    //   每小时上限最多 1.3 倍、冷却最多缩到 0.7 倍；绝不能比用户意愿更严。
     const band = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
-    out.minConfidence = clamp01(band(numOr(out.minConfidence, wantConf), wantConf - 0.08, wantConf + 0.08));
-    out.minMargin = Math.max(0, band(numOr(out.minMargin, wantMargin), wantMargin - 0.40, wantMargin + 0.40));
-    out.maxPerHour = Math.max(1, Math.round(band(numOr(out.maxPerHour, wantCap), wantCap * 0.7, wantCap * 1.3)));
-    out.cooldownMs = Math.max(30000, Math.round(band(numOr(out.cooldownMs, wantCd), wantCd * 0.7, wantCd * 1.35)));
+    out.minConfidence = clamp01(band(numOr(out.minConfidence, wantConf), wantConf - 0.08, wantConf));
+    out.minMargin = Math.max(0, band(numOr(out.minMargin, wantMargin), wantMargin - 0.40, wantMargin));
+    out.maxPerHour = Math.max(1, Math.round(band(numOr(out.maxPerHour, wantCap), wantCap, wantCap * 1.3)));
+    out.cooldownMs = Math.max(30000, Math.round(band(numOr(out.cooldownMs, wantCd), wantCd * 0.7, wantCd)));
 
     out.intent = pct;
     out.wantCap = wantCap;
     out.wantCd = wantCd;
-    // 留痕：自适应这次是"放宽"还是"收紧"、有没有被带子夹住，排查时一眼能看到
+    // 留痕：自适应这次有没有放宽、有没有被带子夹住，排查时一眼能看到
     const looser = out.maxPerHour > wantCap || out.cooldownMs < wantCd || out.minMargin < wantMargin;
-    const tighter = out.maxPerHour < wantCap || out.cooldownMs > wantCd || out.minMargin > wantMargin;
-    out.capSource = looser && tighter ? 'willingness±adaptive' : (looser ? 'willingness+adaptive(looser)' : (tighter ? 'willingness+adaptive(tighter)' : 'willingness'));
+    out.capSource = looser ? 'willingness+adaptive(looser)' : 'willingness';
   }
 
   // ── 好感 / 情绪的偏移量 ──

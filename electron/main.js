@@ -118,7 +118,7 @@ process.on('uncaughtException', (error) => {
 });
 // 只记最后一行，用来区分"用户主动关的"（上面会有 requestQuit 记录）和"自己没的"
 process.on('exit', (code) => {
-  crashLog(`进程退出 code=${code}`, new Error('exit'));
+  console.log(`[quit] 进程退出 code=${code}`);
 });
 app.on('child-process-gone', (_e, details) => {
   crashLog(`子进程消失 ${details?.type ?? ''} reason=${details?.reason ?? ''} code=${details?.exitCode ?? ''}`,
@@ -208,7 +208,7 @@ function requestQuit(reason = 'tray') {
   }
   quitting = true;
   console.log(`[quit] 开始退出（${reason}）…`);
-  crashLog(`主动退出（${reason}）`, new Error('requestQuit'));
+  console.log(`[quit] 主动退出（${reason}）`);
 
   // 1) 告诉渲染进程：别用 beforeunload 拦关窗（否则托盘退出会卡死）
   try {
@@ -581,8 +581,9 @@ function applyTitleBarOverlay(opts = {}) {
       height: TITLEBAR_OVERLAY_HEIGHT
     });
     return true;
-  } catch (error) {
-    console.error('[titlebar] setTitleBarOverlay 失败:', error?.message ?? error);
+  } catch {
+    // 本窗口明确不启用系统 overlay，而界面仍会调用一次同步按钮配色。
+    // 这不是故障：保留自绘按钮即可，不能每次刷新都灌一条 ERROR。
     return false;
   }
 }

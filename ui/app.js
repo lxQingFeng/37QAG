@@ -7076,8 +7076,8 @@ function renderJevSection(c) {
           <option value="probability" ${String(rc.mode) === 'probability' ? 'selected' : ''}>纯概率骰子（不看内容）</option>`)
       ].join(''))}
       ${grid(2, [
-        ffNum('cfg-jev-rc-cooldown', '插嘴冷却', '秒 · 按群计', Math.round((Number(rc.cooldownMs ?? 90000)) / 1000), 'min="0" max="3600"', '同一个群里两次插话至少隔这么久'),
-        ffNum('cfg-jev-rc-maxhour', '接话意愿 · 每小时上限', '次 · 全局共享', rc.maxPerHour ?? 8, 'min="0" max="100"', '所有群加起来一小时最多主动插话几次（0 = 不限）。注意这是**全部会话共享**的配额，不是每个群一份 —— 想让它更主动就同时把「接话意愿」调高（意愿会一起放松冷却与这个上限）'),
+        ffNum('cfg-jev-rc-cooldown', '同群插话冷却', '秒 · 每个群单独计', Math.round((Number(rc.cooldownMs ?? 90000)) / 1000), 'min="0" max="3600"', '同一个群里两次插话至少隔这么久'),
+        ffNum('cfg-jev-rc-maxhour', '每小时插话上限（全局）', '次 · 所有群共享', rc.maxPerHour ?? 8, 'min="0" max="100"', '所有群加起来一小时最多主动插话几次（0 = 不限）。注意这是**全部会话共享**的配额，不是每个群一份 —— 想让它更主动就同时把「接话意愿」调高（意愿会一起放松冷却与这个上限）'),
       ].join(''))}
       <div class="hint" style="margin:-4px 0 10px">上面两条对<b>两种判定方式都生效</b>：Jev 判 YES 的那次、概率骰子命中的那次，走的是同一份冷却与配额。</div>
       <div class="jev-mode-pane${String(rc.mode || 'jev') === 'jev' ? '' : ' is-off'}" data-reply-mode="jev">
@@ -7097,15 +7097,14 @@ function renderJevSection(c) {
             看最近 ${Number(rc.adaptive?.windowMinutes ?? 15)} 分钟内群里有多少条消息、几个不同的人在说，
             折算出一个「活跃度」，再在冷清↔热闹两端之间浮动上面那几条闸门。
             <b>它只在「插话意愿」附近的窄带里微调</b>（概率 ±0.08、间隔 ±0.4、
-            每小时上限 0.7~1.3 倍、冷却 0.7~1.35 倍）——
-            意愿是你设的下限，自适应**不会**把它压回去；热闹度还做了 h^1.6 折算，
-            只有真刷屏才收紧，中等活跃仍按你的意愿走。关掉就固定用上面那组值。
+            每小时上限最多 1.3 倍、冷却最短缩到 0.7 倍；自适应只会放宽，不会比意愿更严）——
+            意愿是你设的下限，热闹时最多保持你的意愿底线，不会比意愿更严；冷清时可以比意愿更主动。关掉就固定用上面那组值。
           </div>
           ${grid(4, [
-            ffNum('cfg-jev-rc-quiet-conf', '冷清端·概率阈值', '0-1', rc.adaptive?.quiet?.minConfidence ?? 0.55, 'min="0" max="1" step="0.05"', '群里安静时的门槛，越低越爱接话（会被夹进意愿±0.08 的带子里）'),
-            ffNum('cfg-jev-rc-busy-conf', '热闹端·概率阈值', '0-1', rc.adaptive?.busy?.minConfidence ?? 0.88, 'min="0" max="1" step="0.05"', '群里刷屏时的门槛，越高越安静（同样受带子限制，不会把意愿吃掉）'),
-            ffNum('cfg-jev-rc-quiet-max', '冷清端·每小时上限', '次', rc.adaptive?.quiet?.maxPerHour ?? 10, 'min="0" max="100"', '人少时允许更勤快地接（最终不会超过意愿的 1.3 倍）'),
-            ffNum('cfg-jev-rc-busy-max', '热闹端·每小时上限', '次', rc.adaptive?.busy?.maxPerHour ?? 3, 'min="0" max="100"', '热闹时的建议上限（最终不会低于意愿的 0.7 倍）')
+            ffNum('cfg-jev-rc-quiet-conf', '冷清端·概率阈值', '0-1', rc.adaptive?.quiet?.minConfidence ?? 0.55, 'min="0" max="1" step="0.05"', '群里安静时的门槛，越低越爱接话（自适应最多放宽 0.08，不会比意愿更严）'),
+            ffNum('cfg-jev-rc-busy-conf', '热闹端·概率阈值', '0-1', rc.adaptive?.busy?.minConfidence ?? 0.88, 'min="0" max="1" step="0.05"', '热闹时的建议门槛（同样只会放宽，不会比意愿更严）'),
+            ffNum('cfg-jev-rc-quiet-max', '冷清端·每小时上限', '次', rc.adaptive?.quiet?.maxPerHour ?? 10, 'min="0" max="100"', '人少时允许更勤快地接（最多放宽到意愿的 1.3 倍）'),
+            ffNum('cfg-jev-rc-busy-max', '热闹端·每小时上限', '次', rc.adaptive?.busy?.maxPerHour ?? 3, 'min="0" max="100"', '热闹时的建议上限（不会压到意愿值以下）')
           ].join(''))}
           <div class="hint">中间活跃度按线性插值在这两端之间取值；间隔阈值（margin）、冷却秒数同理，改它们要编辑配置文件里的 <code>localJev.replyChance.adaptive</code>。</div>
         </div>
@@ -7298,7 +7297,7 @@ function sliderDesc(pos) {
   const { tier, randomPercent } = sliderToTierUI(pos);
   if (tier === 1) return '1 档：仅被 @ 时回应；其余静默。';
   if (tier === 2) return '2 档：被 @ 或命中关键词时回应。';
-  if (tier === 3) return `3 档：被 @ / 关键词必回应；普通消息的接话意愿 ${randomPercent}% —— 越小越挑，同时决定「每小时最多主动插几次」：约 ${Math.max(1, Math.round(randomPercent / 10))} 次/时（实测：光抬判定阈值拦不住，频率得靠这条）。`;
+  if (tier === 3) return `3 档：被 @ / 关键词必回应；普通消息的接话意愿 ${randomPercent}% —— 越小越挑，同时决定「每小时最多主动插几次」：约 ${Math.max(1, Math.round(randomPercent / 5))} 次/时、同群冷却约 ${Math.round(30 + (1 - randomPercent / 100) * 120)} 秒（这两个数会随意愿一起变）。`;
   return '4 档：任何消息都回应。';
 }
 

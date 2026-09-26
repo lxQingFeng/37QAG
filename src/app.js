@@ -21,7 +21,7 @@ import { initPriceFeed, refreshPriceFeed, priceFeedStatus } from './price-feed.j
 import { importFromDsh, currentProviders, setProviderKey, testAllProviders, testOneProvider, testModelChat, fetchModelsFrom, upsertProvider, addModelsToProvider, removeModelFromProvider } from './providers.js';
 import { scanModelsVision, visionResults, modelImageVerdict } from './vision-scan.js';
 import { builtinVisionResults } from './model-vision-docs.js';
-import {createEventBus, todayKey, sweepStaleTmp, openPath, openInBrowser} from './util.js';
+import {createEventBus, todayKey, sweepStaleTmp, openPath, openInBrowser, resolveReplyTargetSelf} from './util.js';
 import { getUsageLedger } from './usage-ledger.js';
 import { getConversationMemory, startConversationMemoryMaintenance, stopConversationMemoryMaintenance } from './conversation-memory/runtime.js';
 import { loadModules, disposeModules, moduleStatus, watchModules } from './module-loader.js';
@@ -816,6 +816,7 @@ function selfDescriptor() {
     try {
       const msg = await onebot.getMsg(messageId);
       const senderName = msg?.sender?.card || msg?.sender?.nickname || '';
+      const quotedSenderId = String(msg?.sender?.user_id ?? '');
       let text = '';
       if (Array.isArray(msg?.message)) {
         text = msg.message.map((s) => (s.type === 'text' ? s.data?.text ?? '' : `[${s.type}]`)).join('').trim();
@@ -824,11 +825,19 @@ function selfDescriptor() {
       }
       // 被引用的那条多半就在我们自己的消息库里（允许的会话全都记）→ 换成短编号给模型用
       let ref = '';
+      let known = null;
       try {
-        const known = chatKey ? store.findByRef(chatKey, messageId) : null;
+        known = chatKey ? store.findByRef(chatKey, messageId) : null;
         if (known) ref = msgRef(known);
       } catch { /* 查不到就不给编号，退回原来的 sender：text */ }
-      return { sender: String(senderName), text: String(text).slice(0, 120), ref };
+      return {
+        id: String(messageId),
+        sender: String(senderName),
+        senderId: quotedSenderId,
+        text: String(text).slice(0, 120),
+        ref,
+        targetSelf: resolveReplyTargetSelf({ known, senderId: quotedSenderId, selfId: onebot.selfId })
+      };
     } catch {
       return null;
     }
@@ -850,9 +859,14 @@ function selfDescriptor() {
     const media = segments ? extractMediaFromSegments(segments) : [];
 
     let text;
+    let replyMeta = null;
     if (segments) {
       text = await segmentsToText(segments, {
-        resolveReply: (mid) => resolveReply(mid, `${kind}:${id}`),
+        resolveReply: async (mid) => {
+          const info = await resolveReply(mid, `${kind}:${id}`);
+          if (info) replyMeta = info;
+          return info;
+        },
         resolveAtName: (qq) => kind === 'group' ? resolveAtName(id, qq) : null,
         // 语音转文字（speech-to-text 插件的能力，没装就退回 [语音]）
         onebot
@@ -1028,6 +1042,7 @@ function selfDescriptor() {
         senderId,
         senderName,
         text: body || '[图片]',
+        reply: replyMeta,
         media
       });
       pluginHost.emit('chat-update', chatKey);
@@ -1045,6 +1060,7 @@ function selfDescriptor() {
       senderId,
       senderName,
       text: text || '[图片]' ,
+      reply: replyMeta,
       media
     });
     // 疑似重复（只报告、不丢消息）：同人同文 8 秒内、但 QQ 消息 id 不同 ——

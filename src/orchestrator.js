@@ -13,7 +13,7 @@ import { createHash } from 'node:crypto';
 import { getConfig, DATA_DIR } from './config.js';
 import { localReplyPolicy, nextTruncationBudget, canEndReplyBatch } from './local-reply-policy.js';
 import { vendorOfConfig } from './model-prices.js';
-import { sleep, randInt, createEventBus, todayKey, stripLeadingReplyPrefix } from './util.js';
+import { sleep, randInt, createEventBus, todayKey, stripLeadingReplyPrefix, isReplyTargetedToSelf } from './util.js';
 import { buildSystemPrompt, buildUserPromptParts, buildStaticPersonaBlock, resolveContextTier, scopedStoreConfig, isAtMe, hitKeyword, wantsMemoryRecall, wantsImage, memoryRecallQuery, relevantSpeakerIds, isHotMemeQuestion, memeSearchQuery } from './prompt.js';
 import { webSearch } from './web-search.js';
 import { applyRunToBotState, botStatePromptLine, detectIncomingHint, getBotState, cueGateMisses, favorDeltaForKinds, mergeEmotionSignals, looksPlayfulOccasion } from './bot-state.js';
@@ -988,7 +988,9 @@ export class Orchestrator {
       const participationAddressed = tierResult?.explicitResponse === true
         || tierResult?.atMe === true
         || ['被艾特', '被叫名字', '拍到我'].includes(tierResult?.reason);
-      const participationReplyTargeted = pendingEntries.some((entry) => entry?.reply);
+      const participationReplyTargeted = pendingEntries.some((entry) => isReplyTargetedToSelf({
+        reply: entry?.reply, selfId: tierScope.selfId
+      }));
       const participationKeywordHit = tierResult?.keyword === true
         || tierResult?.reason === '关键词命中'
         || hitKeyword(triggerText, scopedStoreConfig(cfgNow.store, tierScope).keywords);
@@ -1580,7 +1582,9 @@ export class Orchestrator {
       addressed: tierInfo?.explicitResponse === true
         || tierInfo?.atMe === true
         || ['被艾特', '被叫名字', '拍到我'].includes(tierInfo?.reason),
-      replyTargeted: triggerEntries?.some((m) => m?.reply) === true,
+      replyTargeted: triggerEntries?.some((m) => isReplyTargetedToSelf({
+        reply: m?.reply, selfId: cfg?.onebot?.selfId || this.onebot?.selfId || ''
+      })) === true,
       keywordHit: tierInfo?.keyword === true
         || tierInfo?.reason === '关键词命中'
         || hitKeyword(triggerJoined, scopedStoreConfig(cfg.store, { kind, chatKey }).keywords),
