@@ -18,7 +18,8 @@ logs/
 secrets.json
 credentials.json
 
-# Plugin/user-generated runtime data
+# Plugin/user-generated runtime data（0.6.0 起统一收 data/plugin-data/<id>/，见 src/paths.js）
+data/**/plugin-data/
 plugins/**/data/
 plugins/**/downloads/
 plugins/**/media/

@@ -63,11 +63,11 @@
 // 原始 mid 仍然接受（旧会话的上下文和记忆文件里存的是它）—— 两者由 findByRef 统一解析。
 import fs from 'node:fs';
 import path from 'node:path';
-import { DATA_DIR } from './config.js';
+import { messagesDir, coldDir } from './paths.js';
 import { writeJsonAtomic } from './util.js';
 
-const MESSAGES_DIR = path.join(DATA_DIR, 'messages');
-export const COLD_DIR = path.join(DATA_DIR, 'messages-cold');
+const MESSAGES_DIR = messagesDir();
+export const COLD_DIR = coldDir();
 
 /** 单个冷分片的条数上限。写满即冻结（不再重写），只有最后一片可追加。 */
 export const COLD_CHUNK = 5000;

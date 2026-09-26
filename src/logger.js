@@ -1,7 +1,7 @@
 // 详尽日志系统：分级 + 落盘 + 内存环形缓冲（供 UI 查看）。
 import fs from 'node:fs';
 import path from 'node:path';
-import { DATA_DIR } from './config.js';
+import { logsDir } from './paths.js';
 
 const LEVELS = { debug: 10, info: 20, warn: 30, error: 40 };
 const MAX_MEMORY = 500;
@@ -50,9 +50,7 @@ export function logModules(entries) {
     .sort((a, b) => a.localeCompare(b, 'zh-CN'));
 }
 
-function logsDir() {
-  return path.join(DATA_DIR, 'logs');
-}
+
 
 function todayFile() {
   const d = new Date();

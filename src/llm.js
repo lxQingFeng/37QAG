@@ -59,6 +59,83 @@ export function apiWith(overrides = {}) {
   return { ...effectiveApi(), ...overrides };
 }
 
+// ── 阶段三·模型通道（本地/云端二选一）────────────────────────────────────────
+// 设计：通道信息以 overrides 形式注入（复用 chatCompletion 现有的 overrides 机制，
+// 对记忆整理等既有调用方零影响）。回退发生在 chatCompletionWithRetry 的重试循环里。
+
+/** 读取本地端点配置（api.local），补全默认值。 */
+export function localEndpointCfg() {
+  const local = getConfig().api?.local || {};
+  return {
+    baseUrl: String(local.baseUrl || 'http://127.0.0.1:18080/v1').replace(/\/$/, ''),
+    apiKey: String(local.apiKey || ''),
+    model: String(local.model || '')
+  };
+}
+
+/** 主通道（'cloud' | 'local'；'auto' 视云端配置解析为主云端）。 */
+export function primaryChannel() {
+  const ch = String(getConfig().api?.channel || 'cloud').trim().toLowerCase();
+  if (ch === 'local') return 'local';
+  if (ch === 'auto') {
+    const a = effectiveApi();
+    return a.baseUrl && a.apiKey ? 'cloud' : 'local';   // 云端没配全 → 本地为主
+  }
+  return 'cloud';
+}
+
+/** 允许本地→云端回退吗（channel=local 且 fallback 允许 且 云端已配置）。 */
+export function canFallbackToCloud() {
+  const fb = String(getConfig().api?.fallback || 'local-to-cloud');
+  if (fb === 'none') return false;
+  const a = effectiveApi();
+  return !!(a.baseUrl && a.apiKey);
+}
+
+/** 允许云端→本地回退吗（channel=cloud/auto）。 */
+export function canFallbackToLocal() {
+  const local = localEndpointCfg();
+  return !!local.baseUrl;    // 端点配了就允许试（连通与否由请求本身暴露）
+}
+
+/** 生成某通道的 overrides（cloud 通道 = null，走默认 api）。 */
+export function channelOverrides(mode) {
+  if (mode === 'local') {
+    const local = localEndpointCfg();
+    return { baseUrl: local.baseUrl, apiKey: local.apiKey || undefined, model: local.model || undefined };
+  }
+  return null;
+}
+
+// 本地端点模型名探测缓存（30s 内不重复探测）
+let _localModelCache = { at: 0, model: '' };
+
+/**
+ * 探测本地端点可用性 + 模型名（GET /models，1.5s 超时）。
+ * 返回 { ok, model, error? }。缓存 30 秒。
+ */
+export async function probeLocalEndpoint({ force = false } = {}) {
+  const now = Date.now();
+  if (!force && _localModelCache.model && now - _localModelCache.at < 30_000) {
+    return { ok: true, model: _localModelCache.model, cached: true };
+  }
+  const local = localEndpointCfg();
+  if (!local.baseUrl) return { ok: false, error: 'no-base-url' };
+  try {
+    const res = await fetch(`${local.baseUrl.replace(/\/$/, '')}/models`, {
+      signal: AbortSignal.timeout(1500),
+      headers: local.apiKey ? { authorization: `Bearer ${local.apiKey}` } : {}
+    });
+    if (!res.ok) return { ok: false, error: `http-${res.status}` };
+    const data = await res.json().catch(() => null);
+    const model = String(data?.data?.[0]?.id || '') || '';
+    if (model) _localModelCache = { at: now, model };
+    return { ok: true, model };
+  } catch (error) {
+    return { ok: false, error: String(error?.message ?? error) };
+  }
+}
+
 /**
  * 判断一个错误是否值得重试。
  *
@@ -113,6 +190,20 @@ export function isRetryableError(error) {
  * @param {number} [retries=2] 最多额外重试几次（默认 2，即总共最多 3 次尝试）
  */
 export async function chatCompletionWithRetry(args, retries = 2) {
+  const { emit: emitLifecycle } = await import('./event-bus.js');
+  // ── 阶段三·通道回退状态 ──
+  // channel='cloud'（默认）时 fallbackUsed 恒为 true → 行为与 0.5 完全一致。
+  // channel='local'/'auto' 时失败一次换另一通道再试（只换一次，不反复横跳）。
+  let mode = primaryChannel();
+  // 本地端点没填模型名 → 探测一次（GET /models，1.5s 超时，30s 缓存）。
+  // 探测失败不阻塞：留空交给服务端默认行为（llama-server 单模型时多数容忍空 model）。
+  if (mode === 'local' && !localEndpointCfg().model) {
+    try {
+      const probe = await probeLocalEndpoint();
+      if (probe?.ok && probe.model) _localModelCache.model = probe.model;
+    } catch { /* ignore */ }
+  }
+  let fallbackUsed = mode === 'cloud';
   let lastError = null;
   for (let attempt = 0; attempt <= retries; attempt++) {
     // ── 账号池（account-pool 插件的能力）──
@@ -120,10 +211,32 @@ export async function chatCompletionWithRetry(args, retries = 2) {
     // 限流分摊/按延迟挑），并在成功/失败后回报延迟与错误，让它更新统计。
     // 没装这个插件 → 两个调用都返回 undefined，行为与从前完全一致。
     const pick = await pickPoolEndpoint(args?.poolKey || '');
+    // 通道 overrides（cloud=null 走默认 api；local=api.local 端点）
+    const chOver = channelOverrides(mode);
+    const overrides = { ...(chOver || {}), ...(args?.overrides || {}), ...(pick || {}) };
     const started = Date.now();
+    if (attempt === 0) {
+      try {
+        emitLifecycle('llm.request.before', {
+          messageCount: Array.isArray(args?.messages) ? args.messages.length : 0,
+          toolsCount: Array.isArray(args?.tools) ? args.tools.length : 0,
+          retries,
+          channel: mode
+        });
+      } catch { /* ignore */ }
+    }
     try {
-      const res = await chatCompletion(pick ? { ...args, overrides: { ...(args?.overrides || {}), ...pick } } : args);
+      const res = await chatCompletion(Object.keys(overrides).length ? { ...args, overrides } : args);
       reportPoolEndpoint(pick, { ok: true, ms: Date.now() - started });
+      try {
+        emitLifecycle('llm.request.after', {
+          attempt, ok: true, durationMs: Date.now() - started,
+          model: res?.model || effectiveApi()?.model || '',
+          messageCount: Array.isArray(args?.messages) ? args.messages.length : 0,
+          toolsCount: Array.isArray(args?.tools) ? args.tools.length : 0,
+          usage: res?.usage ? { prompt: res.usage.prompt_tokens, completion: res.usage.completion_tokens } : null
+        });
+      } catch { /* 观察者不得影响主链路 */ }
       return res;
     } catch (error) {
       lastError = error;
@@ -133,7 +246,29 @@ export async function chatCompletionWithRetry(args, retries = 2) {
         error: String(error?.message ?? error),
         status: Number(error?.status ?? error?.statusCode) || 0
       });
-      if (attempt >= retries || !isRetryableError(error)) throw error;
+      // ── 阶段三·通道回退：失败后换另一通道再试（一次性）──
+      if (!fallbackUsed) {
+        const other = mode === 'local' ? 'cloud' : 'local';
+        const allowed = other === 'cloud' ? canFallbackToCloud() : canFallbackToLocal();
+        if (allowed) {
+          fallbackUsed = true;
+          mode = other;
+          reportPoolEndpoint(pick, { ok: false, ms: Date.now() - started, error: `通道回退 → ${other}`, status: 0 });
+          continue;    // 不消耗 attempt 预算：换通道重试不等同于同通道重试
+        }
+      }
+      if (attempt >= retries || !isRetryableError(error)) {
+        try {
+          emitLifecycle('llm.request.after', {
+            attempt, ok: false, durationMs: Date.now() - started,
+            messageCount: Array.isArray(args?.messages) ? args.messages.length : 0,
+            toolsCount: Array.isArray(args?.tools) ? args.tools.length : 0,
+            error: String(error?.message ?? error),
+            channel: mode
+          });
+        } catch { /* ignore */ }
+        throw error;
+      }
       const wait = 1000 * Math.pow(2, attempt);   // 1s, 2s
       console.warn(`[llm] 请求失败（第 ${attempt + 1} 次尝试），${wait}ms 后重试：${error?.message ?? error}`);
       await new Promise((r) => setTimeout(r, wait));

@@ -109,6 +109,40 @@ test('名字和拍一拍会绕过 Jev 插话否决', () => {
   assert.equal(poked.reason, '拍到我');
 });
 
+// 2026-09-26 收官冒烟发现的缺口：4 档（默认）捷径曾把 atMe/explicitResponse 丢掉，
+// orchestrator 的参与判定因此把 @ 当成"主动插话"——本地 Jev 关闭时整批跳过（@ 了也沉默）。
+// 修复后 4 档必须携带显式召唤标记（reason/atMe/explicitResponse），普通消息仍是"全部响应"。
+test('4 档全读不丢显式召唤标记：@/拍一拍仍走不可否决通道', () => {
+  const cfg = { contextTier: 4, randomPercent: 0, atCount: 8, allCount: 80 };
+
+  const at = resolveContextTier({
+    triggerEntries: [{ text: '[CQ:at,qq=88888] 报数' }],
+    selfId: '88888', botName: '37',
+    cfg, deferRandom: true
+  });
+  assert.equal(at.shouldRespond, true);
+  assert.equal(at.reason, '被艾特');
+  assert.equal(at.atMe, true);
+  assert.equal(at.explicitResponse, true);
+  assert.equal(at.count, 80);                       // 4 档上下文仍按 allCount 读
+
+  const poked = resolveContextTier({
+    triggerEntries: [{ text: '[拍一拍] 你被示例用户拍了拍' }],
+    cfg, deferRandom: true
+  });
+  assert.equal(poked.reason, '拍到我');
+  assert.equal(poked.explicitResponse, true);
+
+  const plain = resolveContextTier({
+    triggerEntries: [{ text: '今天天气不错' }],
+    cfg, deferRandom: true
+  });
+  assert.equal(plain.shouldRespond, true);          // 4 档兜底：普通消息照常全部响应
+  assert.equal(plain.reason, '全部响应');
+  assert.equal(plain.explicitResponse, false);
+  assert.equal(plain.atMe, false);
+});
+
 test('系统规则以角色卡为准，精简版不再塞入冲突腔调词', () => {
   const lean = buildLeanSystemRules({ botName: '37' });
   for (const phrase of ['已读乱回', '装唐', '装傻', '反问呛人', '阴阳怪气']) {
@@ -280,7 +314,10 @@ test('模型输出预算为空时回落到 4096，小预算仍可保留', () => 
   assert.equal(DEFAULT_CONFIG.api.maxTokens, 4096);
   assert.equal(DEFAULT_CONFIG.api.timeoutMs, 90000);
   assert.equal(DEFAULT_CONFIG.persona.systemMode, 'lean');
-  assert.equal(DEFAULT_CONFIG.persona.botName, '37');
+  // 2026-09-26：出厂默认人设 37 → 小鲸鱼（与源头项目对齐；37 保留为可选人设）
+  assert.equal(DEFAULT_CONFIG.persona.botName, '小鲸鱼');
+  assert.equal(DEFAULT_CONFIG.persona.selfNickname, '小鲸鱼');
+  assert.equal(DEFAULT_CONFIG.persona.roleText, PERSONAS.xiaojingyu.text);
 });
 
 test('工具说明不再把所有动作替换成同一个占位工具', () => {

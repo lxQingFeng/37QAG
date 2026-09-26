@@ -31,9 +31,8 @@ import { registerTool, unregisterTool, unregisterToolsBySkill, getTool, listTool
 import { skillManager } from './skills/manager.js';
 import { normalizeManifest, isManifestUsable, SKILL_API_VERSION, kindOfDir } from './skills/manifest.js';
 import { skillErrorText } from './skills/errors.js';
-// ── [[command-gateway:loader-import]] 「指令前置」插件自动维护，不要手改这一段 ──
-import { DATA_DIR } from './config.js';
-// ── [[/command-gateway:loader-import]] ──
+// 核心内置（阶段二转正）：插件数据存储走 paths 层，目录为 data/plugin-data/<插件id>/
+import { pluginDataDir } from './paths.js';
 
 const IGNORED_DIRS = new Set([
   'node_modules', '.git', '.svn', '.hg', 'data', 'command_data', 'logs', 'log',
@@ -90,18 +89,19 @@ export function pluginSourceSignature(roots = []) {
 // 通常是 <install>/ —— 用 cwd 会解析到不存在的目录，导致 skills/ 与 plugins/
 // **静默加载 0 个**（既不报错也不打日志，排查成本极高）。
 // 项目内其它模块（app.js 的 UI_DIR、config.js 的 ROOT）都是同一约定。
-// ── [[command-gateway:plugin-storage]] 「指令前置」插件自动维护，不要手改这一段 ──
+// 核心内置（阶段二转正，原 command-gateway:plugin-storage 补丁块）：
 /**
- * 插件自己的数据目录（CRUD 用）：`<数据根>/command_data/<插件 id>/`。
+ * 插件/模块自己的数据目录（CRUD 用）：`<数据根>/plugin-data/<插件 id>/`。
  *
  * 为什么放在数据根下而不是仓库根目录：数据根会跟着 QQ_AGENT_DATA_DIR / 多实例 profile 走，
  * 测试隔离、备份、重置都能盖住它，打包时也被 `!data/**` 排除；放仓库根目录会三样都丢。
+ * （0.6.0 前旧路径是 command_data/<id>/ —— migrateLegacyLayout 会自动搬过来，见 paths.js）
  *
  * 所有路径都锁死在这个子目录里（拒绝 `..`、绝对路径、盘符），
  * 插件只能动自己的那份，互相看不见。
  */
 export function createPluginStorage(skillId) {
-  const root = path.join(DATA_DIR, 'command_data', String(skillId).replace(/[^a-z0-9._-]/gi, '_'));
+  const root = pluginDataDir(skillId);
   const MAX_BYTES = 8 * 1024 * 1024;      // 单文件 8MB：够用，又不至于让插件把盘写满
 
   /** 把外部给的相对路径收进 root 里；越界直接抛错（不静默改写路径）。 */
@@ -181,7 +181,6 @@ export function createPluginStorage(skillId) {
     }
   };
 }
-// ── [[/command-gateway:plugin-storage]] ──
 
 const APP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SKILLS_DIR = path.resolve(APP_ROOT, 'skills');
@@ -260,13 +259,11 @@ function createSkillApi(skillId, permissions = []) {
     },
     hasCapability: (name) => skillManager.hasCapability(name),
     // 日志
-    // ── [[command-gateway:loader-api]] 「指令前置」插件自动维护，不要手改这一段 ──
-    // 这个插件自己的 id：插件不该把 id 硬编码在代码里（清单里改一次、代码就跟不上），
-    // 所以由加载器直接告诉它。
+    // 核心内置（阶段二转正）：插件自己的 id —— 插件不该把 id 硬编码在代码里
+    //（清单里改一次、代码就跟不上），所以由加载器直接告诉它。
     id: skillId,
     // 插件自己的数据目录（CRUD）：只在自己那一份里读写，见 createPluginStorage
     storage: createPluginStorage(skillId),
-    // ── [[/command-gateway:loader-api]] ──
     log: (...args) => console.log(`[skill:${skillId}]`, ...args),
     warn: (...args) => console.warn(`[skill:${skillId}]`, ...args),
     error: (...args) => console.error(`[skill:${skillId}]`, ...args),

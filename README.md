@@ -206,28 +206,29 @@ flowchart TD
 
 ### 1. 获取项目
 
-```powershell
+```bash
 git clone git@github.com:lxQingFeng/37QAG.git
 cd 37QAG
 ```
 
 ### 2. 安装依赖
 
-```powershell
+```bash
 npm install
 ```
 
-### 3. 启动桌面端
+要求 Node.js ≥ 20。服务器（无桌面环境）可只装生产依赖后使用 headless 模式。
 
-```powershell
-npm start
+### 3. 启动（Windows/Linux 双端统一入口）
+
+```bash
+node scripts/start.mjs             # 自动：有 Electron 显示环境→桌面端；否则 headless
+node scripts/start.mjs --headless  # 服务器模式，浏览器访问 http://localhost:3210
+node scripts/start.mjs --desktop   # 桌面模式（等价 npm start）
+node scripts/start.mjs --debug     # 前台运行、控制台可见（排错）
 ```
 
-或者在 Windows 中双击：
-
-```text
-启动-单号.bat
-```
+传统入口同样保留：Windows 双击 `启动-单号.bat` / `启动-双号.bat`；Linux/macOS 运行 `启动-单号.sh` / `启动-双号.sh`（均为 start.mjs 的薄包装）。双号即第二实例：数据目录 `data-2/`、端口自动 +1。
 
 ### 4. 完成首次配置
 
@@ -244,6 +245,10 @@ npm start
 配置完成后重启应用，使模型端和协议端连接稳定。
 
 > 仓库不会提交真实的 `data/config.json`。需要手工预置配置时，可复制根目录的 `config.example.json` 到 `data/config.json`，再填写真实值。
+
+```bash
+mkdir -p data && cp config.example.json data/config.json   # Linux/macOS
+```
 
 ```powershell
 New-Item -ItemType Directory -Force data | Out-Null
@@ -277,13 +282,23 @@ data-2/config.json
 | `snowluma` | WebSocket、HTTP API、访问令牌、账号白名单 |
 | `security` | 私网图片/抓取、图片预览、大小和浏览域名限制 |
 | `allow` / `deny` | 群聊与私聊白名单、黑名单 |
-| `persona` | 机器人名字、角色卡、参与频率、情绪配置 |
+| `persona` | 机器人名字、角色卡、参与频率、情绪配置；出厂默认人设为「小鲸鱼」卡（已有配置不迁移） |
 | `send` | 消息拆分、发送节奏、频率和长度限制 |
 | `store` | 上下文层级、热消息、历史消息和会话文件 |
 | `memory` | 记忆整理、语义卡、记忆模型 |
 | `skills` | 内置技能和插件开关 |
 | `server` | 控制台端口、实例名、访问令牌、自启动 |
 | `ui` | 主题、亮度、缩放、导航和视觉面板 |
+
+### 人设与角色卡
+
+- 出厂默认人设为**小鲸鱼**（DeepSeek 娘，混群 AI 群友，与上游源项目一致）；`37` 等其余 4 张内置卡在控制台「设置 → 人设」里随时切换。已存在的用户配置不会被新默认值覆盖。
+- 想用自己的角色卡，可直接**导入文件**（`data/personas/` 文件层，放入即生效）：
+  - `.txt` / `.md`：整篇正文就是角色卡；人设名取正文首个 `#` 标题（如 `# 角色卡：小白猫` → `小白猫`），没有标题就用文件名；
+  - `.json`：`{"id": "...", "name": "...", "text": "角色卡全文"}`（`roleText` 字段名也认）；
+  - 也可以在控制台「设置 → 人设 → 导入人设文件」里选文件，效果与把文件放进 `data/personas/` 等价。
+- 导入的卡与内置人设走同一条安全链（`sanitizeRoleText` 过滤不可用工具指引），空文件 / 坏 JSON 会自动跳过，不影响运行。
+- 删除导入的人设：删掉 `data/personas/` 里对应的文件即可。
 
 ### 配置安全建议
 
@@ -351,7 +366,7 @@ npm run check
 npm test
 ```
 
-当前测试套件包含 **54 项测试**，覆盖：
+当前测试套件包含 **142 项测试**（23 个测试文件，白名单注册于 `package.json` 的 `scripts.test`，新增测试文件需同步登记），覆盖：
 
 - 参与路线与 Jev 否决边界；
 - RunContext 预算、截止时间和取消；

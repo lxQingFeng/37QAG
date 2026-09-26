@@ -289,6 +289,10 @@ export class SendQueue {
           atUserId: i === 0 ? options.atUserId : null
         });
         const ts = Date.now();
+        try {
+          const { emit } = await import('./event-bus.js');
+          emit('message.sent', { chatKey, kind, id, text: String(text).slice(0, 500), messageId: data?.message_id ?? null, part: i + 1, parts: parts.length });
+        } catch { /* 观察者不影响发送链路 */ }
         // 把"引用了哪条"一起留档：以前自己发的消息不记引用，出了问题（引用错）无从对账
         this.store.appendSelf(chatKey, {
           text, ts, mid: data?.message_id ?? null, hype: isHypeMode(),

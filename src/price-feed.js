@@ -21,10 +21,10 @@
 //           peak/image/note/src 可选，与内置表条目同构。
 import fs from 'node:fs';
 import path from 'node:path';
-import { DATA_DIR } from './config.js';
+import { priceFeedCacheFile, dataRoot } from './paths.js';
 import { setRemotePrices } from './model-prices.js';
 
-const CACHE_FILE = path.join(DATA_DIR, 'price-feed-cache.json');
+const CACHE_FILE = priceFeedCacheFile();
 const FETCH_TIMEOUT_MS = 10000;
 const SUCCESS_INTERVAL_MS = 24 * 3600 * 1000;        // 成功后 24h 再拉
 const FAILURE_RETRY_MS = 3 * 3600 * 1000;            // 失败过 3 小时重试
@@ -125,7 +125,7 @@ function applyDiskCache(url) {
 
 function writeDiskCache(url, prices) {
   try {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.mkdirSync(dataRoot(), { recursive: true });
     const tmp = `${CACHE_FILE}.${process.pid}.tmp`;
     fs.writeFileSync(tmp, JSON.stringify({ url, fetchedAt: Date.now(), prices }), 'utf8');
     fs.renameSync(tmp, CACHE_FILE);

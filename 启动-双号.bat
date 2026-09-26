@@ -14,6 +14,6 @@ exit
 :visible
 echo [debug] starting with a visible console (mode: dual) ...
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0launch.ps1" -Mode dual
-echo [debug] done. Launch log: launch-log.txt
+echo [debug] done. Launch log: data\logs\launch-log.txt
 if /i "%~1"=="/keep" pause
 exit

@@ -1,0 +1,11 @@
+{
+  "id": "crazy-thursday",
+  "kind": "module",
+  "name": "疯狂星期四",
+  "version": "1.0.0",
+  "description": "每周四 7/13/19 点用 LLM 编一段疯狂星期四文案直发指定群，不走角色卡。",
+  "entry": "index.js",
+  "configKeys": ["crazyThursday"],
+  "author": "37QAG core",
+  "license": "MIT"
+}

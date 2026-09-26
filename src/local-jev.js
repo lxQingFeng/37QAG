@@ -22,7 +22,10 @@ import { getConfig, ROOT, DEFAULT_CONFIG } from './config.js';
 
 const DEFAULT_PORT = 18080;
 const DEFAULT_MODEL_REL = 'models/Qwen3.5-0.8B-Q6_K.gguf';
-const DEFAULT_EXE_REL = 'runtime/llama/llama-server.exe';
+// 跨平台（阶段二）：Windows 便携包带 llama-server.exe；Linux/macOS 发行包带无后缀
+// llama-server。默认值按平台选；用户 cfg.exePath 仍可覆盖。找不到默认名时还会
+// 自动试另一个名字（发行包只带了对应平台二进制时不至于误报缺失）。
+const DEFAULT_EXE_REL = process.platform === 'win32' ? 'runtime/llama/llama-server.exe' : 'runtime/llama/llama-server';
 const DEFAULT_MAX_INFLIGHT = 2;
 const DEFAULT_MAX_QUEUE = 6;
 
@@ -44,6 +47,12 @@ export const JEV_ROLES = {
       + '实测号A 存档里它判 skip 163 次，而编排层旁白正则只拦下 2 条 → 159 次是它独自否决的；'
       + '连它自己 few-shot 里标着 say 的「草 没上农你发这干嘛」都会被判 skip。'
       + '弃权时会被调用方整批退回云端裁判重判（判得准，但这次本地推理等于白跑）。'
+  },
+  toolNeedGate: {
+    cn: '这轮要不要查资料/看图（工具门控）',
+    desc: '规则分不清的短消息，问一次「这轮要不要查资料、看图或翻记录」。判 CHAT 就只给发言类工具'
+      + '（省三类信息工具的 schema token，也降低小模型乱选工具的概率）。需要 api.toolGate=jev 才生效。',
+    risk: '低：判错顶多多带或少带几个工具 schema，不影响能否发言'
   },
   replyChanceGate: {
     cn: '这轮该不该插一句（插嘴/接话）',
@@ -219,7 +228,11 @@ function instanceCfg(key = 'primary') {
 
 export function localJevPaths(key = 'primary') {
   const cfg = instanceCfg(key);
-  const exe = absUnderRoot(cfg.exePath || DEFAULT_EXE_REL);
+  const exe = absUnderRoot(cfg.exePath || DEFAULT_EXE_REL) || (() => {
+    // 默认名不存在时试另一个平台的默认名（发行包常见形态）
+    const alt = absUnderRoot(process.platform === 'win32' ? 'runtime/llama/llama-server' : 'runtime/llama/llama-server.exe');
+    return fs.existsSync(alt) ? alt : absUnderRoot(cfg.exePath || DEFAULT_EXE_REL);
+  })();
   const model = absUnderRoot(cfg.modelPath || DEFAULT_MODEL_REL);
   const port = Number(cfg.port) || DEFAULT_PORT;
   const mmproj = key === 'vision' && cfg.mmprojPath ? absUnderRoot(cfg.mmprojPath) : '';
@@ -1146,6 +1159,12 @@ export async function jevAsk({
 
 /** 角色问句表：prompt 只在这里定义一次，调用方只传待判文本。 */
 export const JEV_GATE_SPECS = {
+  toolNeedGate: {
+    cn: '这轮要不要查资料/看图（工具门控）',
+    desc: '规则分不清的短消息，问一次「这轮要不要查资料、看图或翻记录」。判 CHAT 就只给发言类工具'
+      + '（省三类信息工具的 schema token，也降低小模型乱选工具的概率）。需要 api.toolGate=jev 才生效。',
+    risk: '低：判错顶多多带或少带几个工具 schema，不影响能否发言'
+  },
   replyChanceGate: {
     labels: ['YES', 'NO'],
     // 2026-09-19 实测（2168 个「没人点名」的真实会话 + 11 题 A/B 复跑 3 遍）：
@@ -1177,6 +1196,23 @@ export const JEV_GATE_SPECS = {
       ['下周的报表记得交', 'NO']
     ],
     positive: 'YES'
+  },
+  // ── 工具门控（阶段三·省 token）：「这轮要不要查资料/看图/翻记忆」──────────
+  // 用途：api.toolGate='jev' 时，规则层判 unknown 的短消息问这一题。
+  // 判 TOOL → 工具全量；判 CHAT → 只留常驻工具（省 search/media/memory 三类 schema）。
+  // 弃权/失败 → 全量保底（宁可多花 token 不可漏工具）。
+  toolNeedGate: {
+    labels: ['TOOL', 'CHAT'],
+    instruction: '群里有人说话了。判断这轮机器人要不要查资料、看图或翻聊天记录才能接上话，还是直接凭现在聊的内容就能回。',
+    examples: [
+      ['这游戏副本怎么打 根本过不去', 'TOOL'],
+      ['今天A股又绿了 唉', 'TOOL'],
+      ['你上次说的那个链接发我看看', 'TOOL'],
+      ['哈哈哈哈笑死', 'CHAT'],
+      ['行吧 那先这样', 'CHAT'],
+      ['睡了睡了 明天还要早起', 'CHAT']
+    ],
+    positive: 'TOOL'
   },
   // ── 连发合并（自适应防抖）：「他这句说完了没有」────────────────────────
   // 用途见 orchestrator#burstDelayMs：原来纯靠死计时（等 settle 秒看还有没有下句），

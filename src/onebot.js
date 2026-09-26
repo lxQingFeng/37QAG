@@ -743,15 +743,26 @@ export function extractShareCardJson(segData) {
 async function transcribeRecordSegment(data, onebotClient) {
   try {
     const { skillManager } = await import('./skill-bridge.js');
-    const provider = skillManager.getCapabilityProviders('media.transcribe', {})[0];
-    if (!provider?.fn || !onebotClient?.call) return '[语音]';
+    // 阶段四：遍历全部 provider（voice 模块 / speech-to-text 插件谁可用谁上），
+    // 单个 provider 失败/超时不再挡住下一个。整体仍有 25s 硬超时兜底。
+    const providers = skillManager.getCapabilityProviders('media.transcribe', {});
     const record = { ...(data || {}) };
     const out = await Promise.race([
-      Promise.resolve(provider.fn({ record, onebot: onebotClient })),
+      (async () => {
+        for (const provider of providers) {
+          if (!provider?.fn) continue;
+          try {
+            const r = await Promise.resolve(provider.fn({ record, onebot: onebotClient }));
+            const text = String(r?.text || '').trim();
+            if (r?.ok !== false && text) return { text };
+          } catch { /* 这个 provider 不行，试下一个 */ }
+        }
+        return null;
+      })(),
       new Promise((r) => { const t = setTimeout(() => r(null), 25000); t.unref?.(); })
     ]);
     const text = String(out?.text || '').trim();
-    if (out?.ok !== false && text) return `[语音]${text}`;
+    if (out && text) return `[语音]${text}`;
   } catch { /* 转写失败不影响收消息 */ }
   return '[语音]';
 }

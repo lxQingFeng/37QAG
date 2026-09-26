@@ -1,3 +1,4 @@
+import { spawn } from 'node:child_process';
 // 通用小工具：无业务逻辑。
 import fs from 'node:fs';
 import path from 'node:path';
@@ -363,4 +364,36 @@ export function sweepStaleTmp(dir, { maxDepth = 2 } = {}) {
   };
   walk(dir, 1);
   return { removed, bytes };
+}
+
+// ── 跨平台「打开」工具（阶段二：消除 Windows 专用假设）──────────────────────
+
+/**
+ * 用系统文件管理器打开目录（或文件所在目录）。
+ * Windows: explorer.exe ｜ macOS: open ｜ Linux: xdg-open（xdg-open 不存在时静默失败）。
+ */
+/**
+ * 跨平台 spawn 助手：命令不存在（ENOENT）等启动期错误挂到 child 的 error 事件上吞掉，
+ * 不让它变成 uncaughtException 打崩主进程（无桌面环境的服务器上常见 xdg-open 缺失）。
+ */
+function spawnDetachedSafe(cmd, args) {
+  try {
+    const child = spawn(cmd, args, { detached: true, stdio: 'ignore' });
+    child.on('error', () => { /* 命令缺失/权限问题：静默 */ });
+    child.unref();
+    return true;
+  } catch { return false; }
+}
+
+export function openPath(target) {
+  if (process.platform === 'win32') return spawnDetachedSafe('explorer.exe', [String(target)]);
+  if (process.platform === 'darwin') return spawnDetachedSafe('open', [String(target)]);
+  return spawnDetachedSafe('xdg-open', [String(target)]);
+}
+
+/** 用系统默认浏览器打开 URL（Windows 走 cmd start，与桌面版行为一致）。 */
+export function openInBrowser(url) {
+  if (process.platform === 'win32') return spawnDetachedSafe('cmd.exe', ['/c', 'start', '', String(url)]);
+  if (process.platform === 'darwin') return spawnDetachedSafe('open', [String(url)]);
+  return spawnDetachedSafe('xdg-open', [String(url)]);
 }

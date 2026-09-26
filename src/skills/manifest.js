@@ -94,10 +94,10 @@ export function normalizeManifest(raw, { fallbackId = '' } = {}) {
   const selfDep = requires.filter((r) => capabilities.includes(r));
   const requiresClean = requires.filter((r) => !capabilities.includes(r));
 
-  // ── [[command-gateway:manifest-locals]] 「指令前置」插件自动维护，不要手改这一段 ──
+  // 核心内置（阶段二转正）：commands 指令声明协议的清单字段
   // 指令声明（新写法 commands[]，旧写法 command{} 也认）
   const commands = normalizeCommands(raw, id);
-  // ── [[/command-gateway:manifest-locals]] ──
+
 
   return {
     manifest: {
@@ -114,7 +114,7 @@ export function normalizeManifest(raw, { fallbackId = '' } = {}) {
       configSchema: (raw.configSchema && typeof raw.configSchema === 'object') ? raw.configSchema : {},
       settings: (raw.settings && typeof raw.settings === 'object' && !Array.isArray(raw.settings)) ? raw.settings : {},
       prompt: normalizePrompt(raw.prompt),
-      // ── [[command-gateway:manifest-fields]] 「指令前置」插件自动维护，不要手改这一段 ──
+      // 核心内置（阶段二转正）：commands 指令声明（多条）
       commands,
       // 兼容旧写法：只认第一条（新代码请用 commands）
       command: commands[0] || null,
@@ -125,7 +125,7 @@ export function normalizeManifest(raw, { fallbackId = '' } = {}) {
       ...(Array.isArray(raw.exposes)
         ? { exposes: asArray(raw.exposes).map((x) => String(x).trim()).filter((x) => x && capabilities.includes(x)) }
         : {}),
-      // ── [[/command-gateway:manifest-fields]] ──
+
       deprecated: raw.deprecated === true
     },
     problems
@@ -134,7 +134,7 @@ export function normalizeManifest(raw, { fallbackId = '' } = {}) {
 
 /** 提示词片段声明：一律带 priority，且强制低于核心安全规则（100）。 */
 
-// ── [[command-gateway:manifest-normalizers]] 「指令前置」插件自动维护，不要手改这一段 ──
+// ── 指令声明归一化（核心内置，阶段二转正）──
 /**
  * 指令声明：告诉「指令前置」本插件提供哪些指令。
  *
@@ -262,7 +262,7 @@ function normalizeSettingsUi(raw, id) {
   };
 }
 
-// ── [[/command-gateway:manifest-normalizers]] ──
+// ── 指令声明归一化结束 ──
 
 function normalizePrompt(prompt) {
   if (!prompt || typeof prompt !== 'object') return null;

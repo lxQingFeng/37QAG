@@ -12,12 +12,12 @@
 //   5) meta.entries 与内存条数对不上（上次没写完就退出）→ 自动重新对账
 import fs from 'node:fs';
 import path from 'node:path';
-import { DATA_DIR } from './config.js';
+import { dataRoot, sessionsDir } from './paths.js';
 import { modelLabel, UNKNOWN_VENDOR } from './model-prices.js';
 
-const LEDGER_FILE = path.join(DATA_DIR, 'usage-ledger.ndjson');
-const META_FILE = path.join(DATA_DIR, 'usage-ledger.meta.json');
-const SESSIONS_DIR = path.join(DATA_DIR, 'sessions');
+const LEDGER_FILE = path.join(dataRoot(), 'usage-ledger.ndjson');
+const META_FILE = path.join(dataRoot(), 'usage-ledger.meta.json');
+const SESSIONS_DIR = sessionsDir();
 
 /** 从会话对象提取与时间窗无关的用量信息。 */
 export function extractUsageFromSession(s) {

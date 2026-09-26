@@ -38,6 +38,7 @@ import { modelImageVerdict } from './vision-scan.js';
 import { buildStickerContext } from './stickers.js';
 import { judgeTextOnly, judgeUnsentLines } from './salvage.js';
 import { localJevHasRole, jevEmotionHint, jevGateBundle, jevGate, jevCueKind, jevStickerPick, jevReplyChance, jevBurstDone, computeGroupHeat, resolveReplyChanceParams, checkInterjectQuota } from './local-jev.js';
+import { classifyToolNeed, filterToolDefs, truncateToolResult, toolResultBudgetLeft } from './tool-gate.js';
 import { isQuietProtocolText, isReplyPlanningText, rememberReplyDraft, selectGroundedReplies, fitReplyBubbles } from './reply-recovery.js';
 import { currentProviders } from './providers.js';
 import { decideMemoryRecall, decideParticipation, detectParticipationRoute, looksLikeExplicitRequest } from './decision-policy.js';
@@ -123,11 +124,31 @@ export function selectSafeToolCalls(toolCalls = [], state = {}, limits = {}) {
 }
 
 async function executeToolGuarded(toolDefs, ctx, name, argsRaw) {
+  // 生命周期事件（阶段二）：插件/模块可观察工具调用，无需改核心。
+  let _emit = null;
+  try { _emit = (await import('./event-bus.js')).emit; } catch { /* 缺了不致命 */ }
+  try { _emit?.('tool.call.before', { name, chatKey: ctx?.chatKey || '', argsRaw: String(argsRaw || '').slice(0, 2000) }); } catch { /* ignore */ }
   if (/^send_/.test(String(name || ''))) {
     const gate = ctx.guardAction?.(`send:${name}`);
     if (gate && !gate.ok) return { isError: true, content: `发送已取消：${gate.reason}` };
   }
-  return executeTool(toolDefs, ctx, name, argsRaw);
+  const t0 = Date.now();
+  try {
+    const result = await executeTool(toolDefs, ctx, name, argsRaw);
+    // 阶段三·工具结果硬上限：单工具结果截断（默认 6000 字符，api.toolResultMaxChars），
+    // 防 web_fetch 整页 HTML 之类把单轮 token 打爆（RiyaBot 模式，数值自定）。
+    if (result && typeof result.content === 'string' && !result.isError) {
+      const maxChars = Number(getConfig().api?.toolResultMaxChars) || 6000;
+      if (result.content.length > maxChars) {
+        result.content = truncateToolResult(result.content, maxChars);
+      }
+    }
+    try { _emit?.('tool.call.after', { name, chatKey: ctx?.chatKey || '', ok: !(result && result.isError), durationMs: Date.now() - t0 }); } catch { /* ignore */ }
+    return result;
+  } catch (error) {
+    try { _emit?.('tool.call.after', { name, chatKey: ctx?.chatKey || '', ok: false, durationMs: Date.now() - t0, error: String(error?.message ?? error) }); } catch { /* ignore */ }
+    throw error;
+  }
 }
 
 /**
@@ -2162,9 +2183,44 @@ export class Orchestrator {
       if (!searchEnabled && (d.name === 'web_search' || d.name === 'web_fetch' || d.name === 'search_images')) return false;
       return true;
     });
-    const openAiTools = toOpenAiTools(toolDefs);
+    // ── 阶段三·工具门控（会话调度省 token）──────────────────────────────────
+    // 规则层零成本先行：纯闲聊轮把 search/media/memory 三类信息工具的 schema 全砍掉
+    //（模型发言只需 send_*，这些砍了不影响开口）；判不准则全量保底。
+    // toolGate='jev' 时，判不准的短消息再问本地 Jev「这轮要不要查资料/看图」（弃权/失败→全量保底）。
+    // 缓存代价说明：门控档位（none/cats/all）按消息变化，同会话不同轮的 tools 前缀可能
+    // 不同 → 端点 prompt cache 的 tools 块偶发重建。闲聊轮省下的 schema token 通常远大于
+    // 偶发重建的代价；要极致缓存稳定可 toolGate='off' 回到 0.5 行为。
+    const toolGateMode = String(cfg.api?.toolGate || 'rules');
+    let gatedToolDefs = toolDefs;
+    if (toolGateMode !== 'off' && !hypeModeNow) {
+      const gateText = String(session.triggerText || '').slice(0, 400);
+      let verdict = classifyToolNeed(gateText, {
+        hasImage: (session.wakeImages || session.triggerImages || 0) > 0
+      });
+      if (verdict.need === 'unknown' && toolGateMode === 'jev') {
+        try {
+          const jev = await jevGate('toolNeedGate', gateText.slice(0, 160));
+          if (jev && !jev.error && !jev.abstain) {
+            verdict = { need: jev.on ? 'all' : 'none', cats: [], reason: `jev:${jev.label}` };
+          }
+        } catch { /* Jev 挂了按 rules 行为（unknown→全量保底） */ }
+      }
+      gatedToolDefs = filterToolDefs(toolDefs, verdict);
+      session.toolGate = {
+        mode: toolGateMode,
+        need: verdict.need,
+        cats: verdict.cats,
+        reason: verdict.reason,
+        toolsBefore: toolDefs.length,
+        toolsAfter: gatedToolDefs.length
+      };
+      if (toolDefs.length !== gatedToolDefs.length) {
+        console.log(`[orchestrator] ${chatKey} 工具门控 ${verdict.reason}：${toolDefs.length} → ${gatedToolDefs.length} 个工具（省 ${toolDefs.length - gatedToolDefs.length} 个 schema）`);
+      }
+    }
+    const openAiTools = toOpenAiTools(gatedToolDefs);
     const protocolRecovery = cfg.api?.protocolRecovery === true && cfg.api?.textOnlyJudge !== false
-      && toolDefs.some(d => d.name === 'send_message');
+      && gatedToolDefs.some(d => d.name === 'send_message');
     const replyDrafts = [];
 
     const ctx = {
@@ -2593,7 +2649,18 @@ const result = await executeToolGuarded(toolDefs, ctx, name, argsRaw);
         } else {
           contentStr = String(result.content);
         }
-        const executedResult = { role: 'tool', tool_call_id: call.id, name, content: contentStr, isError: !!result.isError };
+                // 阶段三·轮内累计预算（默认 12000 字符，api.toolResultBudgetChars）：
+        // 超出后本轮后续工具结果替换为「预算用尽」短提示，逼模型用已有信息收口，
+        // 而不是无限索取更多上下文（多个 web_fetch 叠加是单轮 token 爆炸的另一主因）。
+        const toolBudget = Number(cfg.api?.toolResultBudgetChars) || 12000;
+        const budgetLeft = toolResultBudgetLeft(toolResults, toolBudget);
+        if (!result.isError && contentStr.length > Math.max(0, budgetLeft)) {
+          const budgetNote = `（本轮工具结果总预算 ${toolBudget} 字符已用尽，此结果被缩短。请基于已有信息作答或结束本轮。）`;
+          contentStr = budgetLeft > budgetNote.length
+            ? truncateToolResult(contentStr, budgetLeft) + budgetNote
+            : budgetNote;
+        }
+const executedResult = { role: 'tool', tool_call_id: call.id, name, content: contentStr, isError: !!result.isError };
         toolResults.push(executedResult);
         acceptedToolResults.push(executedResult);
         session.messages.push({ toolCall: { name, args: safeParse(argsRaw), result: contentStr.slice(0, 2000), isError: !!result.isError } });

@@ -1,0 +1,17 @@
+{
+  "format": "qq-agent-theme",
+  "version": 1,
+  "id": "deep-space-console",
+  "name": "深空控制台",
+  "description": "深空蓝黑 + 冰青 HUD + 琥珀仪表（暗色任务控制台风）。原型见 ui/designs/B-deep-space/prototype.html。",
+  "colors": {
+    "bg": "#0a0f1c",
+    "bg2": "#0f1626",
+    "bg3": "#182136",
+    "accent": "#4cc9f0",
+    "tool-accent": "#ffb454",
+    "text": "#e8f2fa",
+    "muted": "#8ba0b8",
+    "faint": "#5a6d85"
+  }
+}

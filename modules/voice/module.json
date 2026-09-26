@@ -1,0 +1,19 @@
+{
+  "id": "voice",
+  "kind": "module",
+  "name": "语音能力（STT/TTS）",
+  "version": "1.0.0",
+  "description": "QQ 语音转文字（云端硅基流动 SenseVoice / 本地 sherpa-onnx，channel 化+降级）与语音回复（云端 edge-tts / 本地 Kokoro，免费无 key 起步）。",
+  "entry": "index.js",
+  "configKeys": [
+    "voice.stt",
+    "voice.tts"
+  ],
+  "optionalDependencies": [
+    "silk-wasm",
+    "msedge-tts",
+    "sherpa-onnx-node"
+  ],
+  "author": "37QAG core",
+  "license": "MIT"
+}

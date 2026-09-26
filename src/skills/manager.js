@@ -268,7 +268,7 @@ export class SkillManager {
       //   · 声明了但没实现 → 调用方拿到空数组，功能悄悄失效
       //   · 实现了但没声明 → 用户看不出它提供什么，也可能被别人重复实现
       // 放进视图（而不是只写在测试里），是为了让 UI 也能显示成警告。
-    // ── [[command-gateway:status-fields]] 「指令前置」插件自动维护，不要手改这一段 ──
+    // 核心内置（阶段二转正）：指令接入 / 拦截声明 / 插件设置页字段 —— UI 与指令前置据此工作。
     // 对外公开的能力（给别的插件当 API 用）：审计据此区分"公开能力"与"孤儿能力"（README §7.1b）。
     // 0.3.1 的核心自带这一行、0.4.0 的核心没有 —— 用展开补上，避免对象字面量里出现重复键。
     ...(Array.isArray(m.exposes) ? { exposes: [...m.exposes] } : {}),
@@ -282,7 +282,7 @@ export class SkillManager {
       // 自带设置页声明（{ id, label, file }）：控制台据此在设置页侧栏多挂一个分区，
       // 分区内容由插件目录里的那个模块渲染。没有这个字段 = 这个插件没有自己的设置页。
       settingsUi: m.settingsUi || null,
-      // ── [[/command-gateway:status-fields]] ──
+
       implementedCapabilities: Object.keys(skill.providers || {}),
       // 该模块注册的行为钩子名（确定性型常见形态：靠钩子插进主流程）
       hooks: Object.keys(skill.hooks || {}),

@@ -8,10 +8,11 @@
 // 存 data/api-news.json。
 import fs from 'node:fs';
 import path from 'node:path';
-import { DATA_DIR, getConfig } from './config.js';
-import { chatCompletion } from './llm.js';
+import { getConfig } from '../../src/config.js';
+import { apiNewsFile, dataRoot } from '../../src/paths.js';
+import { chatCompletion } from '../../src/llm.js';
 
-const FILE = path.join(DATA_DIR, 'api-news.json');
+const FILE = apiNewsFile();
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
 const KEEP_DAYS = 45;          // 条目最多保留这么久，避免无限堆积
 const REFRESH_HOUR = 4;        // 每天凌晨 4 点自动刷新
@@ -475,7 +476,7 @@ function readCache() {
 
 function writeCache(data) {
   try {
-    fs.mkdirSync(path.dirname(DATA_DIR), { recursive: true });
+    fs.mkdirSync(dataRoot(), { recursive: true });
     const tmp = `${FILE}.${process.pid}.tmp`;
     fs.writeFileSync(tmp, JSON.stringify(data, null, 1), 'utf8');
     fs.renameSync(tmp, FILE);

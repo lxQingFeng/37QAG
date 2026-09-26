@@ -5,13 +5,14 @@
 //   >0 时情绪只做 ±6 微调，且最终概率硬顶在设置值 1.25 倍 +2 以内
 import fs from 'node:fs';
 import path from 'node:path';
-import { DATA_DIR, getConfig } from './config.js';
+import { getConfig } from './config.js';
+import { botStateFile } from './paths.js';
 import { isHypeMode, getHypeProtectedQQ } from './hype-mode.js';
 import { getEmotionProfile, EMOTION_PROFILES, listEmotionProfiles, DEFAULT_EMOTION_PROFILE } from './emotion-personality.js';
 
 export { listEmotionProfiles, EMOTION_PROFILES, DEFAULT_EMOTION_PROFILE, getEmotionProfile };
 
-const FILE = path.join(DATA_DIR, 'bot-state.json');
+const FILE = botStateFile();
 const MIN = 60 * 1000;
 const HOUR = 60 * MIN;
 

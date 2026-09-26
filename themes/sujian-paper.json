@@ -1,0 +1,17 @@
+{
+  "format": "qq-agent-theme",
+  "version": 1,
+  "id": "sujian-paper",
+  "name": "素笺",
+  "description": "宣纸白 + 墨字 + 朱砂印 + 靛青批注（浅色信笺风）。原型见 ui/designs/A-sujian/prototype.html。",
+  "colors": {
+    "bg": "#f7f3ea",
+    "bg2": "#fffcf5",
+    "bg3": "#efe8d9",
+    "accent": "#b3423a",
+    "tool-accent": "#33608c",
+    "text": "#2b2724",
+    "muted": "#6e655a",
+    "faint": "#a09383"
+  }
+}

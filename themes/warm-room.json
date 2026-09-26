@@ -1,0 +1,17 @@
+{
+  "format": "qq-agent-theme",
+  "version": 1,
+  "id": "warm-room",
+  "name": "暖房",
+  "description": "奶油米 + 陶土橘 + 鼠尾草绿（暖色居家风）。原型见 ui/designs/C-warm-room/prototype.html。",
+  "colors": {
+    "bg": "#f6eadb",
+    "bg2": "#fff8ee",
+    "bg3": "#efdec8",
+    "accent": "#e07a5f",
+    "tool-accent": "#7fa37a",
+    "text": "#42352b",
+    "muted": "#8b7a6b",
+    "faint": "#b3a294"
+  }
+}

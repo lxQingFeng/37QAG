@@ -4,14 +4,15 @@
 // 提示词用极短格式注入，控制 token。
 import fs from 'node:fs';
 import path from 'node:path';
-import { DATA_DIR, getConfig, updateConfig } from './config.js';
+import { getConfig, updateConfig } from './config.js';
+import { memoryDir, memoryPeopleDir } from './paths.js';
 import { logMemoryChange } from './memory-audit.js';
 import { tokenize } from './conversation-memory/tokenize.js';
 import { jevGate, localJevHasRole } from './local-jev.js';
 import { noteEntry, decayInfo, liveEntries, pruneEntries, ageLabel } from './half-life.js';
 
-const MEMORY_DIR = path.join(DATA_DIR, 'memory');
-const PEOPLE_DIR = path.join(MEMORY_DIR, 'people');
+const MEMORY_DIR = memoryDir();
+const PEOPLE_DIR = memoryPeopleDir();
 
 // ── 表层记忆（2026-09-21）────────────────────────────────────────────────
 // 长期印象回答的是"这个人是谁"（学历、口味、雷点，几个月不变）；但真聊天里还要知道

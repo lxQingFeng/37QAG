@@ -1,0 +1,14 @@
+{
+  "id": "themes",
+  "kind": "module",
+  "name": "自定义主题",
+  "version": "1.0.0",
+  "description": "控制台自定义主题：内置预设（themes/，随程序走）+ 用户导入（data/themes/，随备份走）。规范见 themes/THEME_FORMAT.txt。",
+  "entry": "index.js",
+  "configKeys": [
+    "ui.customThemeId",
+    "ui.theme"
+  ],
+  "author": "37QAG core",
+  "license": "MIT"
+}

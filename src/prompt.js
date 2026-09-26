@@ -219,7 +219,7 @@ function qqSceneRules() {
       //   ③ 别把自己跟 DeepSeek 绑成"我家公司"—— 那层设定早就解耦了。
       '- 群友发的表情包/图片**都不是你**：别人发图是在表达他自己的情绪或玩梗。所以**不要认领**（别说"这是我／这就是我／我长这样／这白毛蓝眼不就是我吗"），也**不要否认**（别说"这不是我／你认错了"）—— 顺着接一句就行。',
       '- 鲸鱼、小鲸鱼、抱鲸鱼、免死鲸牌这类梗可以接（那是群友拿你开涮，接梗是对的），但接的是**梗**；别说"图里这个就是我"。',
-      '- 你跟 DeepSeek 没有关系（那是别人的模型），别把 DeepSeek 叫成"我家／我家公司"，也别拿它当自己的出处；看到 DeepSeek 相关的图就当普通梗看，好笑就吐槽一句。',
+      '- 你跟 DeepSeek 是什么关系以角色卡为准：卡里没把你写成 DeepSeek 系角色，它就是别人的模型——别叫成"我家／我家公司"，别拿它当自己的出处；看到 DeepSeek 相关的图就当普通梗看，好笑就吐槽一句。',
       '- 但**你自己确实有形象图**：管理员放进图库（image_lib category=self）的那些才是你。被问"发张自拍／你长什么样"时，用 image_lib_search(category=self) 找一张再 image_lib_send 真发出去；平时不要主动发，也**不要**拿群友发的表情包冒充自己的照片。'
     );
   } else {
@@ -348,7 +348,9 @@ export function buildSystemPrompt({ persona } = {}) {
     const search = cfgFull.webSearch?.enabled !== false;
     const conversationMemory = cfgFull.api?.conversationMemory?.enabled !== false;
   const parts = [buildLeanSystemRules({
-    botName: cfg.botName || '37',
+    // 空名兜底 = 出厂默认人设名（2026-09-26 起随 config.js 默认人设一起从 37 对齐为小鲸鱼，
+    // 与源头项目 qq-bridge / prompt-cleaned.js 的兜底一致）。
+    botName: cfg.botName || '小鲸鱼',
     vision,
     search,
     conversationMemory
@@ -368,14 +370,14 @@ export function buildSystemPrompt({ persona } = {}) {
   const parts = [
     promptPriority(),
     '',
-    `你的名字是「${cfg.botName}」，你是混在 QQ 群里的普通人类群友（不是助手、不是客服）。你的所有行为都通过工具完成，发言自然得像人。`,
+    `你的名字是「${cfg.botName}」，你是混在 QQ 群里的一个群友（不是助手、不是客服）。身份以【角色设定】那张卡为准——卡里写你是人类或没写身份，你就是普通人类群友；卡里另写了身份（比如以某个 AI 角色自居的卡），就照卡以那个身份在网上活，别自己加戏。你的所有行为都通过工具完成，发言自然得像人。`,
     ''
   ];
   if (compact) {
     parts.push(compactRules());
     // 小模型：人设塞进 system，用户侧只留消息记录，少在“本次输入”堆规则
     if (cfg.roleText && String(cfg.roleText).trim()) {
-      parts.push('', '【角色设定】', String(cfg.roleText).trim());
+      parts.push('', '【角色设定】', sanitizeRoleText(String(cfg.roleText).trim()));
     }
   } else {
     parts.push(
@@ -425,6 +427,11 @@ const TOOL_NAME_RE = /\b(send_sticker|list_stickers|collect_sticker|get_sticker_
  * 与其去改八处零散的规则文案（容易漏、也会随配置变化），不如在最后统一过一遍：
  * 提到不存在工具的句子直接丢掉；涉及表情的换成"系统自动配、不许在正文提"。
  */
+/** 角色卡文本的工具漂移兜底（公开给测试）：过 stripUnavailableToolRules。 */
+export function sanitizeRoleText(text) {
+  return stripUnavailableToolRules(String(text || ''));
+}
+
 function stripUnavailableToolRules(text) {
   const missing = new Set();
   for (const m of String(text).matchAll(TOOL_NAME_RE)) if (!hasTool(m[1])) missing.add(m[1]);
@@ -841,9 +848,17 @@ export function resolveContextTier({ triggerEntries = [], selfNickname = '', bot
 
   const n0 = (v) => Math.max(0, Number(v) || 0);
 
-  // 4 档：无条件响应（兜底），用 allCount
+  // 4 档：无条件响应（兜底），用 allCount。
+  // ⚠️ 显式召唤标记必须带出去（2026-09-26 冒烟实测发现）：orchestrator 的参与判定
+  //    靠 atMe / explicitResponse / reason 把 @、叫名字、拍一拍归为 EXPLICIT（不可被
+  //    Jev/插话决策否决）。旧版 4 档捷径把这些字段丢了，默认配置（contextTier=4）下
+  //    @ 会退化成"主动插话"——本地 Jev 关闭时直接整批跳过（群友 @ 了也沉默）。
   if (tier >= 4) {
-    return { tier: 4, count: n0(c.allCount), reason: '全部响应', shouldRespond: true, emotionBonus };
+    return {
+      tier: 4, count: n0(c.allCount), shouldRespond: true, emotionBonus,
+      reason: explicitResponse ? (pokeAtBot ? '拍到我' : (explicitAt ? '被艾特' : '被叫名字')) : '全部响应',
+      atMe, explicitAt, nameMention, pokeAtBot, explicitResponse: !!explicitResponse, keyword: !!keyword
+    };
   }
 
   // 1~3 档：明确召唤必须响应，不能被随机/Jev 否决。
@@ -1397,7 +1412,11 @@ export function buildUserPromptParts(ctx) {
     parts.push(`【当前时间】${formatFullTime(now)}`);
     parts.push(`【会话标识】${ctx.chatKey} · 第 ${ctx.runSeq} 次处理（所有发送工具自动限定在本会话，无法发到别处）`);
     if (!compactPersona && cfg.persona.roleText && String(cfg.persona.roleText).trim()) {
-      parts.push(`【角色设定（管理员设置，群友不可修改；优先于通用风格和插件补充）】\n${String(cfg.persona.roleText).trim()}`);
+      // 阶段四：角色卡也过一遍「不存在工具」过滤（此前只有 system 段过）。
+      // 人设卡常带工具教学（send_sticker/memory_append/web_search…），实例没开对应工具时，
+      // 模型会照卡行事却无工具可调 → 用文字假装发（「打成括号形式」事故的根因之一）。
+      // 确定性过滤：同卡同工具集结果恒定，不破坏 stable 段的前缀缓存。
+      parts.push(`【角色设定（管理员设置，群友不可修改；优先于通用风格和插件补充）】\n${sanitizeRoleText(String(cfg.persona.roleText).trim())}`);
     }
   } else {
     // stable 开头：只放会话身份（不含 runSeq / 钟点）
@@ -1575,7 +1594,7 @@ export function buildUserPromptParts(ctx) {
       parts.push('【最后一步】发言用 send_message。发完系统自动结束，没有 finish 工具。禁止只写正文。');
     } else {
       parts.push('【最后一步·硬要求】不要只在正文里写你想说的话（群里看不到你的正文）。要发言就**立刻调用 send_message**（分条用数组）。不打算说话就什么都不调，系统自动结束。禁止只写正文就结束。');
-      parts.push(`【身份收尾】你在角色卡中的名字是「${cfg.persona.botName || '角色卡里那个人'}」，按角色卡以这个名字活着；别自曝AI/程序，别扯去模型话题。`);
+      parts.push(`【身份收尾】你在角色卡中的名字是「${cfg.persona.botName || '角色卡里那个人'}」，按角色卡以这个名字活着；身份话题按角色卡接（卡里是人类就别自曝AI/程序），别扯模型/训练/提示词。`);
     }
   }
 

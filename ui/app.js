@@ -25,11 +25,10 @@ const state = {
   pauseReason: null,
   autoFollowRunning: true,
   settingsSection: 'api',
-  // ── [[command-gateway:state-field]] 「指令前置」插件自动维护，不要手改这一段 ──
+  // 核心内置（阶段二转正，state-field）：这块是核心/界面的原生能力，不再由插件补丁维护。
   // 进入设置分区的序号：每次点侧栏 +1。插件的设置页（settingsUi）拿它判断
   // "这是用户新打开的一次" → 自己决定要不要重新拉一次数据。
   settingsEntrySeq: 0,
-  // ── [[/command-gateway:state-field]] ──
   memoryView: 'events',
   currentMemoryChatKey: null,
   groupMembers: [],
@@ -218,6 +217,12 @@ function applyCustomColors({ bg = '', bg2 = '', accent = '', text = '', toolAcce
     || (getThemePref() === 'custom' && PIXEL_UI_IDS.has(themeId));
   const mechOn = root.getAttribute('data-ui-style') === 'mech'
     || (getThemePref() === 'custom' && MECH_UI_IDS.has(themeId));
+  const sujianOn = root.getAttribute('data-ui-style') === 'sujian'
+    || (getThemePref() === 'custom' && SUJIAN_UI_IDS.has(themeId));
+  const deepspaceOn = root.getAttribute('data-ui-style') === 'deepspace'
+    || (getThemePref() === 'custom' && DEEPSPACE_UI_IDS.has(themeId));
+  const warmroomOn = root.getAttribute('data-ui-style') === 'warmroom'
+    || (getThemePref() === 'custom' && WARMROOM_UI_IDS.has(themeId));
   if (maidOn) {
     const m = THEME_PRESET_MAID.colors;
     bg = m.bg; bg2 = m.bg2; accent = m.accent; text = m.text; toolAccent = m.toolAccent;
@@ -226,6 +231,15 @@ function applyCustomColors({ bg = '', bg2 = '', accent = '', text = '', toolAcce
     bg = p.bg; bg2 = p.bg2; accent = p.accent; text = p.text; toolAccent = p.toolAccent;
   } else if (mechOn) {
     const c = THEME_PRESET_MECH.colors;
+    bg = c.bg; bg2 = c.bg2; accent = c.accent; text = c.text; toolAccent = c.toolAccent;
+  } else if (sujianOn) {
+    const c = THEME_PRESET_SUJIAN.colors;
+    bg = c.bg; bg2 = c.bg2; accent = c.accent; text = c.text; toolAccent = c.toolAccent;
+  } else if (deepspaceOn) {
+    const c = THEME_PRESET_DEEPSPACE.colors;
+    bg = c.bg; bg2 = c.bg2; accent = c.accent; text = c.text; toolAccent = c.toolAccent;
+  } else if (warmroomOn) {
+    const c = THEME_PRESET_WARMROOM.colors;
     bg = c.bg; bg2 = c.bg2; accent = c.accent; text = c.text; toolAccent = c.toolAccent;
   }
   const set = (name, val) => {
@@ -506,6 +520,55 @@ const MAID_UI_IDS = new Set(['deepseek-maid', 'ds-maid', 'maid-deepseek', 'deeps
 /** 像素风「白京玉 · 像素夜」：硬边框 + 暖琥珀灯火，不走液态玻璃。 */
 const PIXEL_UI_IDS = new Set(['bijingyu-pixel', 'bijingyu', 'pixel-jade', 'baijingyu-pixel', 'pixel-bijingyu']);
 
+// ── 阶段四·三套新风格（ui/designs/ 原型集成）：素笺 / 深空控制台 / 暖房 ──
+const SUJIAN_UI_IDS = new Set(['sujian-paper', 'sujian', 'paper-letter']);
+const DEEPSPACE_UI_IDS = new Set(['deep-space-console', 'deepspace', 'deep-space']);
+const WARMROOM_UI_IDS = new Set(['warm-room', 'warmroom']);
+const THEME_PRESET_SUJIAN = {
+  id: 'sujian-paper',
+  name: '素笺',
+  description: '宣纸白 + 墨字 + 朱砂印 + 靛青批注（浅色信笺风）',
+  colors: {
+    bg: '#f7f3ea',
+    bg2: '#fffcf5',
+    bg3: '#efe8d9',
+    accent: '#b3423a',
+    toolAccent: '#33608c',
+    text: '#2b2724',
+    muted: '#6e655a',
+    faint: '#a09383'
+  }
+};
+const THEME_PRESET_DEEPSPACE = {
+  id: 'deep-space-console',
+  name: '深空控制台',
+  description: '深空蓝黑 + 冰青 HUD + 琥珀仪表（暗色任务控制台风）',
+  colors: {
+    bg: '#0a0f1c',
+    bg2: '#0f1626',
+    bg3: '#182136',
+    accent: '#4cc9f0',
+    toolAccent: '#ffb454',
+    text: '#e8f2fa',
+    muted: '#8ba0b8',
+    faint: '#5a6d85'
+  }
+};
+const THEME_PRESET_WARMROOM = {
+  id: 'warm-room',
+  name: '暖房',
+  description: '奶油米 + 陶土橘 + 鼠尾草绿（暖色居家风）',
+  colors: {
+    bg: '#f6eadb',
+    bg2: '#fff8ee',
+    bg3: '#efdec8',
+    accent: '#e07a5f',
+    toolAccent: '#7fa37a',
+    text: '#42352b',
+    muted: '#8b7a6b',
+    faint: '#b3a294'
+  }
+};
 const THEME_PRESET_MECH = {
   id: 'mech-orange',
   name: '机甲 · 黑橙',
@@ -564,6 +627,9 @@ function syncUiStyle(themeId, themePref) {
   const mech = pref === 'custom' && MECH_UI_IDS.has(id);
   const maid = pref === 'custom' && MAID_UI_IDS.has(id);
   const pixel = pref === 'custom' && PIXEL_UI_IDS.has(id);
+  const sujian = pref === 'custom' && SUJIAN_UI_IDS.has(id);
+  const deepspace = pref === 'custom' && DEEPSPACE_UI_IDS.has(id);
+  const warmroom = pref === 'custom' && WARMROOM_UI_IDS.has(id);
   if (mech) {
     root.setAttribute('data-ui-style', 'mech');
     const fx = state?.config?.ui?.mechFx;
@@ -605,6 +671,48 @@ function syncUiStyle(themeId, themePref) {
     root.style.setProperty('--bg-3', p.bg3);
     root.style.setProperty('--accent', p.accent);
     root.style.setProperty('--tool-accent', p.toolAccent);
+    syncTitleBarFromTheme();
+  } else if (sujian) {
+    // 素笺（浅色）：token 锁主题色（customText 被改深也不破坏信笺白）
+    root.setAttribute('data-ui-style', 'sujian');
+    root.removeAttribute('data-mech-fx');
+    const c = THEME_PRESET_SUJIAN.colors;
+    root.style.setProperty('--text', c.text);
+    root.style.setProperty('--muted', c.muted);
+    root.style.setProperty('--faint', c.faint);
+    root.style.setProperty('--bg', c.bg);
+    root.style.setProperty('--bg-2', c.bg2);
+    root.style.setProperty('--bg-3', c.bg3);
+    root.style.setProperty('--accent', c.accent);
+    root.style.setProperty('--tool-accent', c.toolAccent);
+    syncTitleBarFromTheme();
+  } else if (deepspace) {
+    // 深空控制台（深色）：锁浅字 token，防 customText 深色覆盖
+    root.setAttribute('data-ui-style', 'deepspace');
+    root.removeAttribute('data-mech-fx');
+    const c = THEME_PRESET_DEEPSPACE.colors;
+    root.style.setProperty('--text', c.text);
+    root.style.setProperty('--muted', c.muted);
+    root.style.setProperty('--faint', c.faint);
+    root.style.setProperty('--bg', c.bg);
+    root.style.setProperty('--bg-2', c.bg2);
+    root.style.setProperty('--bg-3', c.bg3);
+    root.style.setProperty('--accent', c.accent);
+    root.style.setProperty('--tool-accent', c.toolAccent);
+    syncTitleBarFromTheme();
+  } else if (warmroom) {
+    // 暖房（浅色）：同锁 token
+    root.setAttribute('data-ui-style', 'warmroom');
+    root.removeAttribute('data-mech-fx');
+    const c = THEME_PRESET_WARMROOM.colors;
+    root.style.setProperty('--text', c.text);
+    root.style.setProperty('--muted', c.muted);
+    root.style.setProperty('--faint', c.faint);
+    root.style.setProperty('--bg', c.bg);
+    root.style.setProperty('--bg-2', c.bg2);
+    root.style.setProperty('--bg-3', c.bg3);
+    root.style.setProperty('--accent', c.accent);
+    root.style.setProperty('--tool-accent', c.toolAccent);
     syncTitleBarFromTheme();
   } else {
     root.removeAttribute('data-ui-style');
@@ -1919,7 +2027,7 @@ function connectSSE() {
     refreshStatus();
     if (state.tab === 'emotions') loadEmotionsView();
   });
-  // ── [[command-gateway:plugin-notice]] 「指令前置」插件自动维护，不要手改这一段 ──
+  // 核心内置（阶段二转正，plugin-notice）：这块是核心/界面的原生能力，不再由插件补丁维护。
   // 插件用 ui.notify 能力推来的通知（浮在右下角，8 秒后自己消失）。
   es.addEventListener('plugin-notice', (ev) => {
     let d = {};
@@ -1938,7 +2046,6 @@ function connectSSE() {
     el.querySelector('.ut-close')?.addEventListener('click', () => el.remove());
     setTimeout(() => el.remove(), 8000);
   });
-  // ── [[/command-gateway:plugin-notice]] ──
   es.addEventListener('snowluma-status', () => { refreshStatus(); if (state.tab === 'snowluma') loadSnowlumaPage({ quiet: true }); });
   es.addEventListener('snowluma-log', (ev) => {
     const d = JSON.parse(ev.data);
@@ -5920,8 +6027,10 @@ function renderPersonaPicker(c) {
       <div class="field-addon" style="flex-wrap:wrap">
         <input type="text" id="cfg-persona-pick" readonly placeholder="点击选择人设" value="${esc(currentName)}" style="cursor:pointer" />
         <button class="btn btn-small" id="new-persona-btn" type="button">＋ 添加人设</button>
+        <button class="btn btn-small" id="import-persona-btn" type="button" title="支持 .txt / .md / .json：正文即角色卡，人设名取「# 角色卡：xxx」标题或文件名，导入后落在 data/personas/">导入人设文件</button>
         <button class="btn btn-small btn-danger hidden" id="del-persona-btn" type="button">删除当前自定义人设</button>
         <span id="persona-pick-hint" class="muted" style="font-size:12px"></span>
+        <input type="file" id="import-persona-file" accept=".txt,.md,.json,text/plain,text/markdown,application/json" class="hidden" />
       </div>
     </div>`;
 }
@@ -6140,7 +6249,7 @@ function renderSettingsSidebar() {
       ['desktop', '桌面端']
     ]]
   ];
-  // ── [[command-gateway:sidebar-menu]] 「指令前置」插件自动维护，不要手改这一段 ──
+  // 核心内置（阶段二转正，sidebar-menu）：这块是核心/界面的原生能力，不再由插件补丁维护。
   // 插件自带设置页（清单里声明了 settingsUi 的插件）的侧栏入口。
   //
   // ⚠️ 这个变量在各核心版本里**形状不同**（2026-09-23 实测踩到）：
@@ -6158,7 +6267,6 @@ function renderSettingsSidebar() {
       menu.push(...__cgPluginItems);                       // 0.3.1 / 0.4.0：追加到平铺菜单
     }
   }
-  // ── [[/command-gateway:sidebar-menu]] ──
   sidebar.innerHTML = `
     <div class="settings-runstate">
       <div class="rs-title">机器人运行状态</div>
@@ -6183,11 +6291,10 @@ function renderSettingsSidebar() {
       // 换页后旧分区的字段已经不在文档里，只能靠这次 flush 兜住。
       await flushSettingsSave();
       state.settingsSection = el.dataset.section;
-      // ── [[command-gateway:sidebar-click]] 「指令前置」插件自动维护，不要手改这一段 ──
+      // 核心内置（阶段二转正，sidebar-click）：这块是核心/界面的原生能力，不再由插件补丁维护。
       // 每次进入都算"新的一次打开"：插件设置页据此决定要不要自动重拉数据
       // （比如「指令前置」的调用记录是插件运行时写回配置的，旧快照看不到）。
       state.settingsEntrySeq = (state.settingsEntrySeq || 0) + 1;
-      // ── [[/command-gateway:sidebar-click]] ──
       renderSettingsSidebar();
       renderSettings();
     });
@@ -6220,14 +6327,13 @@ function renderSettings() {
   box.innerHTML = `
     ${renderSettingsSection(c)}`;
   bindSettingsEvents(c);
-  // ── [[command-gateway:render-settings]] 「指令前置」插件自动维护，不要手改这一段 ──
+  // 核心内置（阶段二转正，render-settings）：这块是核心/界面的原生能力，不再由插件补丁维护。
   // 插件设置页的内容是异步加载的（动态 import 插件目录里的模块），
   // 所以同步把壳放好之后在这里启动挂载；不是插件分区时它会顺手卸载上一个。
   pluginSectionMount = mountPluginSection();
   // 京玉版的设置页不拉 /api/skills（0.4 会），插件分区列表会是空的 ——
   // 这里补一次数据；拿到之后它会自己把侧栏的「插件」分组与当前分区重画出来。
   ensurePluginSkills({ rerender: true });
-  // ── [[/command-gateway:render-settings]] ──
 }
 
 function renderSettingsSection(c) {
@@ -6245,13 +6351,12 @@ function renderSettingsSection(c) {
     desktop: () => renderDesktopSection(c),
     onebot: () => renderOnebotSection(c)
   };
-  // ── [[command-gateway:render-section]] 「指令前置」插件自动维护，不要手改这一段 ──
+  // 核心内置（阶段二转正，render-section）：这块是核心/界面的原生能力，不再由插件补丁维护。
   // 插件自带的设置页（清单里的 settingsUi）不在这里列：它们由 mountPluginSection() 填充，
   // 因为内容来自插件目录里的模块，而不是核心代码。
   if (pluginSections().some((p) => p.key === sec)) {
     return '<div id="plugin-section-root"><div class="hint">正在加载插件设置页…</div></div>';
   }
-  // ── [[/command-gateway:render-section]] ──
   const render = sections[sec] || sections.api;
   return `
     <div class="page-head">
@@ -6328,7 +6433,7 @@ function checkRow(id, label, checked, hint = '') {
 }
 
 
-// ── [[command-gateway:plugin-sections]] 「指令前置」插件自动维护，不要手改这一段 ──
+// 核心内置（阶段二转正，plugin-sections）：这块是核心/界面的原生能力，不再由插件补丁维护。
 /* ══════════════════════════════════════════════════════════════════════
    插件自带的设置页分区
 
@@ -6495,7 +6600,6 @@ async function mountPluginSection() {
   }
 }
 
-// ── [[/command-gateway:plugin-sections]] ──
 function renderApiSection(c) {
   const currentProvider = (state.providers || []).find((p) => p.id === c.api.provider);
   const currentModelDisplay = (currentProvider?.modelNames || {})[c.api.model] || c.api.model;
@@ -9195,7 +9299,7 @@ function bindSettingsEvents(c) {
   async function loadThemePresets() {
     const host = $('#theme-presets');
     if (!host) return;
-    let list = [THEME_PRESET_MECH, THEME_PRESET_MAID, THEME_PRESET_PIXEL];
+    let list = [THEME_PRESET_MECH, THEME_PRESET_MAID, THEME_PRESET_PIXEL, THEME_PRESET_SUJIAN, THEME_PRESET_DEEPSPACE, THEME_PRESET_WARMROOM];
     let current = state.config?.ui?.customThemeId || '';
     try {
       const r = await api('/api/themes');
@@ -9221,7 +9325,10 @@ function bindSettingsEvents(c) {
           const th = (r?.themes || []).find((x) => x.id === id)
             || (id === THEME_PRESET_MECH.id ? THEME_PRESET_MECH : null)
             || (MAID_UI_IDS.has(String(id).toLowerCase()) ? THEME_PRESET_MAID : null)
-            || (PIXEL_UI_IDS.has(String(id).toLowerCase()) ? THEME_PRESET_PIXEL : null);
+            || (PIXEL_UI_IDS.has(String(id).toLowerCase()) ? THEME_PRESET_PIXEL : null)
+            || (SUJIAN_UI_IDS.has(String(id).toLowerCase()) ? THEME_PRESET_SUJIAN : null)
+            || (DEEPSPACE_UI_IDS.has(String(id).toLowerCase()) ? THEME_PRESET_DEEPSPACE : null)
+            || (WARMROOM_UI_IDS.has(String(id).toLowerCase()) ? THEME_PRESET_WARMROOM : null);
           if (!th?.colors) throw new Error('找不到主题 ' + id);
           applyThemeColorsFromObject(th.colors, th.id);
           loadThemePresets();
@@ -9757,6 +9864,34 @@ function bindSettingsEvents(c) {
   }
   const newPersonaBtn = $('#new-persona-btn');
   if (newPersonaBtn) newPersonaBtn.addEventListener('click', () => openPersonaCreateModal());
+  // 导入人设文件（.txt/.md/.json）：读全文 → POST /api/persona-templates/import →
+  // 落在 data/personas/ 文件层（与直接拖文件进目录等价），刷新模板列表即可选用。
+  const importPersonaBtn = $('#import-persona-btn');
+  if (importPersonaBtn) importPersonaBtn.addEventListener('click', () => $('#import-persona-file')?.click());
+  const importPersonaFile = $('#import-persona-file');
+  if (importPersonaFile) importPersonaFile.addEventListener('change', async () => {
+    const f = importPersonaFile.files?.[0];
+    if (!f) return;
+    const btn = importPersonaBtn;
+    if (btn) { btn.disabled = true; btn.textContent = '导入中…'; }
+    try {
+      const content = await f.text();
+      const r = await api('/api/persona-templates/import', {
+        method: 'POST',
+        body: JSON.stringify({ filename: f.name, content })
+      });
+      await loadSettings();   // 重新拉模板列表并重渲染（导入的人设已进文件层）
+      // loadSettings 会整页重画设置表单，提示要拿重渲染后的新节点
+      const hint = $('#persona-pick-hint');
+      if (hint) hint.textContent = `人设「${r.name}」已导入（${r.file} · ${r.chars} 字），在「选择人设」里选用后点「保存人设修改」生效。`;
+    } catch (e) {
+      const hint = $('#persona-pick-hint');
+      if (hint) hint.textContent = `导入失败：${e.message}`;
+    } finally {
+      importPersonaFile.value = '';   // 允许连续导入同名文件（重渲染后是全新 input，这里兜底旧节点）
+      if (btn) { btn.disabled = false; btn.textContent = '导入人设文件'; }
+    }
+  });
   const delPersonaBtn = $('#del-persona-btn');
   if (delPersonaBtn) delPersonaBtn.addEventListener('click', async () => {
     const id = currentPersonaId();
@@ -10552,7 +10687,7 @@ async function saveConfig({ quiet = false } = {}) {
 
   const patch = {};
 
-  // ── [[command-gateway:save-config]] 「指令前置」插件自动维护，不要手改这一段 ──
+  // 核心内置（阶段二转正，save-config）：这块是核心/界面的原生能力，不再由插件补丁维护。
   // 插件自带的设置页：核心不认识它的字段，所以"把界面读成补丁"这件事交给插件模块的
   // read(ctx)，核心只负责写进它自己的命名空间（服务端还会按清单再过滤一次键）。
   if (String(sec).startsWith('plugin:')) {
@@ -10569,7 +10704,6 @@ async function saveConfig({ quiet = false } = {}) {
     if (!quiet) $('#model-label').textContent = `模型：${state.config.api.model || '未设置'}`;
     return r;
   }
-  // ── [[/command-gateway:save-config]] ──
 
 
   if (sec === 'memory') {

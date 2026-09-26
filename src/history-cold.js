@@ -14,9 +14,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { DATA_DIR } from './config.js';
+import { historyColdDir } from './paths.js';
 
-const COLD_DIR = path.join(DATA_DIR, 'history-cold');
+const COLD_DIR = historyColdDir();
 
 function ensureDir() {
   try { fs.mkdirSync(COLD_DIR, { recursive: true }); } catch { /* ignore */ }

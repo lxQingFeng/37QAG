@@ -14,8 +14,10 @@ export const ROOT = path.resolve(__dirname, '..');
 export const PROFILE_ID = String(process.env.QQ_AGENT_PROFILE || '').trim();
 const PROFILE_INDEX = /^\d+$/.test(PROFILE_ID) ? Number(PROFILE_ID) : 0;
 
-// 测试/便携/多实例场景可用 QQ_AGENT_DATA_DIR 重定向数据目录
+// 测试/便携/多实例场景可用 QQ_AGENT_DATA_DIR（或别名 QAG_DATA_HOME）重定向数据目录。
+// 优先级：QQ_AGENT_DATA_DIR > QAG_DATA_HOME > 默认（ROOT/data[/-N]）。
 export const DATA_DIR = process.env.QQ_AGENT_DATA_DIR
+  || process.env.QAG_DATA_HOME
   || path.join(ROOT, PROFILE_ID ? `data-${PROFILE_ID}` : 'data');
 export const CONFIG_FILE = path.join(DATA_DIR, 'config.json');
 
@@ -116,6 +118,32 @@ export const DEFAULT_CONFIG = {
     //     off    = 不判，有图就附（旧行为）
     //   对方明确说"看看/这是啥/分析下/图里"时不问闸，直接附图。
     imageGate: 'hybrid',
+    // ── 阶段三·模型通道（本地/云端二选一）────────────────────────────────
+    // channel = 'cloud'（默认，行为与 0.5 完全一致）
+    //         | 'local'（主对话走本地 OpenAI 兼容端点，如 llama-server /v1、Ollama、LM Studio）
+    //         | 'auto' （云端优先；云端没配 Key 或请求失败 → 回退本地）
+    channel: 'cloud',
+    // 本地端点（OpenAI 兼容 /chat/completions）。默认指向 localJev 拉起的 llama-server
+    // —— 也就是说「勾了本地 Jev」的包已经具备本地主对话的全部前提，channel 一切就切过去。
+    local: {
+      baseUrl: 'http://127.0.0.1:18080/v1',
+      model: '',                // 留空 = 启动/首用时自动 GET /models 探测
+      apiKey: ''                // 本地服务一般不需要；llama-server 默认免鉴权
+    },
+    // 回退策略：channel='local' 时本地端点挂了怎么办
+    //   'local-to-cloud'（默认）→ 本地失败自动改走云端（云端已配置时）
+    //   'none'                → 不回退，本地挂就报错（纯离线场景用它，避免误花钱）
+    fallback: 'local-to-cloud',
+    // ── 阶段三·工具按需注入（会话调度省 token）───────────────────────────
+    // toolGate = 'off'    → 每轮全量注入（0.5 行为）
+    //           | 'rules'（默认）→ 规则分类：纯闲聊轮只注入常驻工具（省 search/media/memory
+    //                                三类 schema token），判不准则全量保底。零成本、零延迟。
+    //           | 'jev'  → 规则判不准时再问本地 Jev「这轮要不要查资料/看图」（+≤1 次本地推理，
+    //                        换更准的裁剪；本地没起时自动退回 rules 行为）
+    toolGate: 'rules',
+    // 工具结果硬上限（防单轮 token 爆炸）：单工具结果截断 / 每轮累计预算（字符）
+    toolResultMaxChars: 6000,
+    toolResultBudgetChars: 12000,
     // 关闭模型"思考模式"。按端点自动选参数（常见国内均适配）：
     //   阿里百炼 enable_thinking:false · 火山/智谱/Kimi/DeepSeek thinking.type=disabled
     //   硅基流动 chat_template_kwargs · 未知中转试 enable_thinking，400 自动去掉重试
@@ -297,6 +325,46 @@ export const DEFAULT_CONFIG = {
   // 本地 Jev 式决策旁路：包内 llama-server + 小 Qwen，只做结构化小决策，不当聊天主脑。
   // roles 能填哪些、各自管什么、判错后果 —— 以 local-jev.js 的 JEV_ROLES 目录为唯一出处
   // （控制台「设置 → 本地 Jev」按那份渲染，这里不再抄一遍清单，抄了就会对不上）。
+  // ── 语音能力（阶段四·modules/voice；STT/TTS 各自独立开关，默认全关）──────
+  voice: {
+    stt: {
+      enabled: false,               // 语音→文字（关=收语音只显示 [语音] 占位）
+      channel: 'cloud',             // 'cloud' | 'local' | 'auto'（云端配了 key→云，否则本地）
+      cloud: {                      // 云端默认：硅基流动 SenseVoiceSmall（平台永久免费模型，注册即得 key）
+        baseUrl: 'https://api.siliconflow.cn/v1',
+        apiKey: '',                 // 免费注册：https://cloud.siliconflow.cn
+        model: 'FunAudioLLM/SenseVoiceSmall',
+        timeoutMs: 30000
+      },
+      local: {                      // 本地档：sherpa-onnx + SenseVoice ONNX（模型自备）
+        engine: 'sherpa-onnx',      // 'sherpa-onnx' | 'whisper-cli'（兼容 speech-to-text 插件路线）
+        modelPath: '',              // 模型目录/文件（含 tokens.txt）；whisper-cli 时填 ggml
+        cliPath: '',                // CLI 路径，留空 PATH 探测
+        language: 'zh'
+      },
+      fallback: 'cloud-to-local'    // 云端失败回本地一次；'none' 不回退
+    },
+    tts: {
+      enabled: false,               // 文字→语音回复
+      mode: 'manual',               // 'manual'=模型经 send_voice 工具自主决定 | 'auto'=每条回复自动跟发
+      channel: 'cloud',             // 'cloud'=edge-tts（免费无 key）| 'local'=Kokoro | 'auto'
+      cloud: {                      // edge-tts：需 npm i msedge-tts（可选依赖，装了即用）
+        voice: 'zh-CN-XiaoxiaoNeural',   // 中文音色：Xiaoxiao/Yunxi/Yunjian/Xiaoyi…
+        rate: 0, volume: 0, pitch: 0,    // 百分比调节（-50 ~ +50）
+        timeoutMs: 20000
+      },
+      local: {                      // 本地档：Kokoro-82M v1.1-zh via sherpa-onnx（模型自备）
+        engine: 'kokoro',
+        modelPath: '',
+        cliPath: '',
+        voice: 'zf_xiaoxiao'
+      },
+      encode: 'auto',               // 'auto'=silk-wasm 可用则 wav→silk，否则直发 | 'silk' | 'raw'
+      autoCooldownMs: 30000,        // auto 模式冷却（防工具+自动双发）
+      maxLength: 200,               // 单条朗读上限（字）
+      fallback: 'cloud-to-local'
+    }
+  },
   localJev: {
     enabled: true,
     // 打开软件时就把本地模型拉起来（默认开）。关掉 = 回到「懒启动」：
@@ -674,9 +742,14 @@ export const DEFAULT_CONFIG = {
   },
   // 人设与行为
   persona: {
-    botName: '37',
-    selfNickname: '37',                    // 在群里的展示名（留空用 QQ 昵称）
-    roleText: PERSONAS.qag37.text,          // 默认人设：37（温柔、体贴、可爱）
+    // 出厂默认人设 = 小鲸鱼（2026-09-26 起与源头项目 qq-bridge 的默认对齐：botName/展示名
+    // 都叫小鲸鱼，角色卡用原版「DeepSeek 小鲸鱼」）。37（qag37）仍是内置可选人设，
+    // 控制台「人设模板」里随时可切。⚠️ 已存在的用户配置不受影响：data/config.json 里
+    // 显式写过的 persona 字段在 deepMerge 中永远优先于这里的出厂默认 —— 本默认值只影响
+    // 全新初始化（首次启动落盘的那份默认配置）。
+    botName: '小鲸鱼',
+    selfNickname: '小鲸鱼',                 // 在群里的展示名（留空用 QQ 昵称）
+    roleText: PERSONAS.xiaojingyu.text,     // 默认人设：小鲸鱼（DeepSeek 娘，混群 AI 群友）
     // true = 系统提示只发"精简版规则"（安全边界 + 工具协议 + 说话要点，约 800 字），
     // 通用长规则（反 AI 味/主体性/表情策略/QQ 场景…几千字）不再每轮重复发。
     // 小模型 / 短上下文（约 8k 窗口）建议打开；人格细节由角色设定卡承担。

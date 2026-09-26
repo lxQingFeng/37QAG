@@ -3,10 +3,13 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { DATA_DIR } from './config.js';
+// ⚠️ DATA_DIR 必须显式导入：阶段二路径集中化时本文件 3 处 usage-today.json 读写
+//    漏了导入（todayUsage/#bumpTodayUsage），会话结束抛 ReferenceError 被误报成
+//    「持久化失败」，当日用量统计恒为 0（2026-09-26 收官冒烟实测发现）。
+import { sessionsDir, DATA_DIR } from './paths.js';
 import { getUsageLedger } from './usage-ledger.js';
 
-const SESSIONS_DIR = path.join(DATA_DIR, 'sessions');
+const SESSIONS_DIR = sessionsDir();
 
 export function newSessionId() {
   return `${Date.now().toString(36)}-${crypto.randomBytes(4).toString('hex')}`;

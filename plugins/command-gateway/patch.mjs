@@ -198,6 +198,45 @@ export const PATCHES = [
   ] }
 ];
 
+// ── 核心内置检测（阶段二，0.6.0+）──────────────────────────────────────────
+// 核心 0.6.0 起把这 15 个块全部「转正」成了原生代码（内容与补丁版等价，个别注释
+// 与 storage 路径按新架构微调）。转正的标志是核心源文件里出现了这些特征串。
+// 检测到 builtin 的块：status() 报 'builtin'，apply() 跳过（不打补丁），
+// revert() 不摘（摘了会把核心原生代码删掉）—— 对插件来说"核心天生就带我这块"。
+const BUILTIN_SIGNATURES = {
+  'dispatch':            ['src/app.js', '会话前拦截点（核心内置'],
+  'plugin-assets':       ['src/app.js', '插件静态资源服务（核心内置'],
+  'manifest-fields':     ['src/skills/manifest.js', '核心内置（阶段二转正）：commands 指令声明（多条）'],
+  'manifest-normalizers':['src/skills/manifest.js', '指令声明归一化（核心内置'],
+  'manifest-locals':     ['src/skills/manifest.js', '核心内置（阶段二转正）：commands 指令声明协议的清单字段'],
+  'status-fields':       ['src/skills/manager.js', '核心内置（阶段二转正）：指令接入'],
+  'loader-import':       ['src/plugin-loader.js', "import { pluginDataDir } from './paths.js';"],
+  'plugin-storage':      ['src/plugin-loader.js', 'const root = pluginDataDir(skillId);'],
+  'loader-api':          ['src/plugin-loader.js', '核心内置（阶段二转正）：插件自己的 id'],
+  'state-field':         ['ui/app.js', '核心内置（阶段二转正，state-field）'],
+  'sidebar-menu':        ['ui/app.js', '核心内置（阶段二转正，sidebar-menu）'],
+  'sidebar-click':       ['ui/app.js', '核心内置（阶段二转正，sidebar-click）'],
+  'render-settings':     ['ui/app.js', '核心内置（阶段二转正，render-settings）'],
+  'render-section':      ['ui/app.js', '核心内置（阶段二转正，render-section）'],
+  'plugin-sections':     ['ui/app.js', '核心内置（阶段二转正，plugin-sections）'],
+  'save-config':         ['ui/app.js', '核心内置（阶段二转正，save-config）'],
+  'plugin-notice':       ['ui/app.js', '核心内置（阶段二转正，plugin-notice）'],
+  'reload-shortcut':     ['electron/main.js', '核心内置（阶段二转正）：无菜单栏时补上']
+};
+
+/** 这个块是否已被核心内置（0.6.0+）。返回 true/false。 */
+export function isBuiltin(entry, { root = DEFAULT_ROOT } = {}) {
+  const sig = BUILTIN_SIGNATURES[entry.id];
+  if (!sig) return false;
+  const f = readFileText(root, sig[0]);   // { p, text, crlf } | null
+  return !!f && String(f.text || '').includes(sig[1]);
+}
+
+/** 核心源码里出现过的 builtin 特征串（诊断/测试用）。 */
+export function builtinSignatures() {
+  return { ...BUILTIN_SIGNATURES };
+}
+
 /** 兼容旧写法（单个 file/mode/anchor）—— 别的插件抄过去的那份引擎可能还是老表。 */
 const placesOf = (entry) => (Array.isArray(entry.places) && entry.places.length
   ? entry.places
@@ -514,6 +553,12 @@ function ensureBackup(root, backupDir, manifest, rel, key, nowIso) {
 export function status({ root = DEFAULT_ROOT } = {}) {
   const files = [];
   for (const entry of PATCHES) {
+    if (isBuiltin(entry, { root })) {
+      const sig = BUILTIN_SIGNATURES[entry.id];
+      files.push({ file: sig[0], id: entry.id, state: 'builtin',
+        detail: '核心 0.6.0+ 已原生内置该能力，无需（也不应）打补丁' });
+      continue;
+    }
     const places = placesOf(entry);
     const where = locateBlock(root, entry);
     if (where) {
@@ -563,6 +608,12 @@ export function status({ root = DEFAULT_ROOT } = {}) {
   }
   const states = new Set(files.map((f) => f.state));
   let state = 'partial';
+  if (states.size === 1 && (states.has('patched') || states.has('builtin'))) state = states.has('builtin') ? 'builtin' : 'patched';
+  if (states.has('builtin')) {
+    // 混合场景（核心只内置了一部分——理论出现在魔改核心上）：builtin 视为已就绪
+    states.delete('builtin');
+    if (states.size === 0) state = 'builtin';
+  }
   if (states.size === 1 && states.has('patched')) state = 'patched';
   else if (states.size === 1 && states.has('clean')) state = 'clean';
   else if (states.size === 1 && states.has('stale')) state = 'stale';
@@ -581,10 +632,10 @@ export function status({ root = DEFAULT_ROOT } = {}) {
  */
 export function apply({ root = DEFAULT_ROOT, backupDir = backupDirFor(root), now = new Date() } = {}) {
   const st = status({ root });
-  if (st.state === 'patched') {
-    return { ok: true, state: 'patched', changed: [], conflicts: [], needsRestart: false };
+  if (st.state === 'patched' || st.state === 'builtin') {
+    return { ok: true, state: st.state, changed: [], conflicts: [], needsRestart: false };
   }
-  const blocking = st.files.filter((f) => f.state !== 'clean' && f.state !== 'patched' && f.state !== 'stale');
+  const blocking = st.files.filter((f) => f.state !== 'clean' && f.state !== 'patched' && f.state !== 'stale' && f.state !== 'builtin');
   if (blocking.length) {
     return {
       ok: false,
@@ -603,6 +654,7 @@ export function apply({ root = DEFAULT_ROOT, backupDir = backupDirFor(root), now
     return e ? { p: e.p, text: e.text, crlf: e.crlf } : readFileText(root, rel);
   };
   for (const entry of PATCHES) {
+    if (isBuiltin(entry, { root })) continue;          // 核心 0.6.0+ 原生内置，不打
     const where = locateBlock(root, entry);
     let upgraded = false;
     if (where && hasBlock(where.text, entry.id)) {
@@ -711,6 +763,7 @@ export function revert({ root = DEFAULT_ROOT, backupDir = backupDirFor(root) } =
   // 一个文件里可能有好几个块：先按"这个块现在落在哪个文件"分组，再一次性摘。
   const touched = new Map();   // rel → { f, entries[] }
   for (const entry of PATCHES) {
+    if (isBuiltin(entry, { root })) continue;          // 核心原生代码，不是我们打的补丁，不摘
     const where = locateBlock(root, entry);
     if (!where) continue;                              // 这个块本来就不在（或已经干净）
     const group = touched.get(where.place.file) || { f: where, entries: [] };

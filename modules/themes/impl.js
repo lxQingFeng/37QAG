@@ -2,9 +2,11 @@
 // 规范见 themes/THEME_FORMAT.txt
 import fs from 'node:fs';
 import path from 'node:path';
-import { ROOT } from './config.js';
+import { ROOT } from '../../src/config.js';
+import { userThemesDir } from '../../src/paths.js';
 
-export const THEMES_DIR = path.join(ROOT, 'themes');
+export const THEMES_DIR = path.join(ROOT, 'themes');        // 内置主题（随程序走，只读资产）
+export const USER_THEMES_DIR = userThemesDir();   // 用户导入主题（data/ 单根，随备份走）
 
 /** 内置预设（机甲风等），始终可用，不依赖磁盘。 */
 export const BUILTIN_THEMES = [
@@ -153,28 +155,32 @@ function safeThemeName(name) {
 export function listThemes() {
   const byId = new Map();
   for (const t of BUILTIN_THEMES) byId.set(t.id, { ...t });
-  try {
-    if (!fs.existsSync(THEMES_DIR)) fs.mkdirSync(THEMES_DIR, { recursive: true });
-    for (const f of fs.readdirSync(THEMES_DIR)) {
-      if (!/\.(json|txt)$/i.test(f)) continue;
-      if (/THEME_FORMAT/i.test(f)) continue;
-      try {
-        const raw = fs.readFileSync(path.join(THEMES_DIR, f), 'utf8');
-        const th = parseThemeText(raw, path.parse(f).name);
-        byId.set(th.id, { ...th, file: f, builtin: !!byId.get(th.id)?.builtin });
-      } catch { /* 跳过坏文件 */ }
-    }
-  } catch { /* 目录不可读时只返回内置 */ }
+  // 双层目录（阶段二）：先读用户层 data/themes/（导入的主题，随备份走），
+  // 再读内置层 themes/（随程序走的只读资产）。同 id 时用户层覆盖内置层。
+  for (const dir of [THEMES_DIR, USER_THEMES_DIR]) {
+    try {
+      if (!fs.existsSync(dir)) continue;
+      for (const f of fs.readdirSync(dir)) {
+        if (!/\.(json|txt)$/i.test(f)) continue;
+        if (/THEME_FORMAT/i.test(f)) continue;
+        try {
+          const raw = fs.readFileSync(path.join(dir, f), 'utf8');
+          const th = parseThemeText(raw, path.parse(f).name);
+          byId.set(th.id, { ...th, file: f, builtin: dir === THEMES_DIR ? !!byId.get(th.id)?.builtin : false, user: dir === USER_THEMES_DIR });
+        } catch { /* 跳过坏文件 */ }
+      }
+    } catch { /* 目录不可读时跳过这一层 */ }
+  }
   return [...byId.values()];
 }
 
-/** 导入主题文本，写入 themes/，返回主题对象。 */
+/** 导入主题文本，写入 data/themes/（用户层），返回主题对象。 */
 export function importTheme(raw, { filename = '' } = {}) {
   const base = filename ? path.parse(filename).name : '';
   const th = parseThemeText(raw, base);
   const file = safeThemeName(th.id || base) + '.json';
-  const abs = path.join(THEMES_DIR, file);
-  fs.mkdirSync(THEMES_DIR, { recursive: true });
+  const abs = path.join(USER_THEMES_DIR, file);
+  fs.mkdirSync(USER_THEMES_DIR, { recursive: true });
   const payload = {
     format: 'qq-agent-theme',
     version: 1,
@@ -189,4 +195,40 @@ export function importTheme(raw, { filename = '' } = {}) {
 export function getThemeById(id) {
   const sid = String(id || '').trim();
   return listThemes().find((t) => t.id === sid) || null;
+}
+
+/**
+ * 磁盘内置主题 id 清单：这些文件随程序分发（内存 BUILTIN_THEMES 之外的磁盘内置层），
+ * migrateUserThemesOut 绝不能把它们当用户文件搬走（阶段四踩过：新加的三个风格主题
+ * 被当成"用户放错位置的主题"搬进 data/themes/，测试环境里表现为内置文件凭空消失）。
+ */
+export const FILE_BUILTIN_IDS = Object.freeze([
+  'mech-orange', 'deepseek-maid', 'bijingyu-pixel',
+  'sujian-paper', 'deep-space-console', 'warm-room'
+]);
+
+/**
+ * 阶段二迁移：把历史上直接放进内置 themes/ 的**用户主题**搬到 data/themes/。
+ * 判定标准：主题 id 不在内存 BUILTIN_THEMES 且不在 FILE_BUILTIN_IDS（磁盘内置清单）里。
+ * 幂等：搬过（内置目录里已没有）就不会再动。返回迁移明细。
+ */
+export function migrateUserThemesOut() {
+  const moves = [];
+  const builtinIds = new Set([...BUILTIN_THEMES.map((t) => String(t.id)), ...FILE_BUILTIN_IDS]);
+  try {
+    if (!fs.existsSync(THEMES_DIR)) return moves;
+    for (const f of fs.readdirSync(THEMES_DIR)) {
+      if (!/\.json$/i.test(f) || /THEME_FORMAT/i.test(f)) continue;
+      const th = (() => { try { return parseThemeText(fs.readFileSync(path.join(THEMES_DIR, f), 'utf8'), path.parse(f).name); } catch { return null; } })();
+      if (!th) continue;
+      if (builtinIds.has(String(th.id))) continue;    // 内置预设本体，留原地
+      const dest = path.join(USER_THEMES_DIR, f);
+      try {
+        fs.mkdirSync(USER_THEMES_DIR, { recursive: true });
+        if (!fs.existsSync(dest)) fs.renameSync(path.join(THEMES_DIR, f), dest);
+        moves.push(`${f} → data/themes/`);
+      } catch { /* 搬不动就留着，双层读取仍能读到 */ }
+    }
+  } catch { /* ignore */ }
+  return moves;
 }

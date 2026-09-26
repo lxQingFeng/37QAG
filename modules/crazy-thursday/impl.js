@@ -1,7 +1,7 @@
 // 每周四 7/13/19 点：用 LLM 编一段疯狂星期四文案后直发到指定群。
 // 不走角色卡/人设提示词——系统里只有「写文案」指令。
-import { getConfig } from './config.js';
-import { chatCompletion, resolveApiKey } from './llm.js';
+import { getConfig } from '../../src/config.js';
+import { chatCompletion, resolveApiKey } from '../../src/llm.js';
 
 let timer = null;
 const fired = new Set();

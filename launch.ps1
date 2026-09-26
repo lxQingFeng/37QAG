@@ -19,7 +19,10 @@ param(
 $ErrorActionPreference = 'Continue'
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $exe = Join-Path $root 'node_modules\electron\dist\electron.exe'
-$log = Join-Path $root 'launch-log.txt'
+# 阶段二：启动日志收归 data/logs/（单根备份）；旧根目录 launch-log.txt 由核心迁移
+$dataLogs = Join-Path $root 'data\logs'
+try { New-Item -ItemType Directory -Force -Path $dataLogs | Out-Null } catch {}
+$log = Join-Path $dataLogs 'launch-log.txt'
 
 function Log([string]$m) {
   try { Add-Content -LiteralPath $log -Value ("[{0}] {1}" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $m) -Encoding UTF8 } catch { }

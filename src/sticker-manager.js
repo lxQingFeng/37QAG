@@ -1,7 +1,8 @@
 // 运行期表情库管理：同步 QQ 收藏表情 + 本地认知层（备注/笔记/使用计数）。
 // 纯函数在 stickers.js；这里管缓存、TTL 和 OneBot 交互。
 import { OneBotClient } from './onebot.js';
-import { getConfig, DATA_DIR } from './config.js';
+import { getConfig } from './config.js';
+import { stickerImagesDir } from './paths.js';
 import { safeFetchBinary } from './safe-fetch.js';
 import { isLocalHostUrl } from './util.js';
 import fs from 'node:fs';
@@ -54,9 +55,7 @@ function errText(err) {
  * 本地表情图片目录：只允许这里的 file:// 地址被读成文件。
  * （2026-09-22：为了跑 0.4 的 reverse-image 技能 —— 它要拿本地文件转 dataURL 去反查图片。）
  */
-export function stickerImagesDir() {
-  return path.join(DATA_DIR, 'sticker-images');
-}
+export { stickerImagesDir };
 
 /**
  * 表情**字节**缓存目录（和表情图源目录分开，不会被 localStickerPath 当成"用户图"）。

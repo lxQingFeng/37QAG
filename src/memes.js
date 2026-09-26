@@ -3,10 +3,11 @@
 // 模型可直接 memory_meme_save；约 30 天未被搜/闪/再存触发的条目会清理。
 import fs from 'node:fs';
 import path from 'node:path';
-import { DATA_DIR, getConfig } from './config.js';
+import { getConfig } from './config.js';
+import { memesFile } from './paths.js';
 import { logMemoryChange } from './memory-audit.js';
 
-const FILE = path.join(DATA_DIR, 'memes.json');
+const FILE = memesFile();
 // 2026-09-21：200 → 400。原上限 200 是拍脑袋定的，而库是按需检索（memory_meme_search）
 // 用的，不整库进提示词 → 容量不影响 token；反而库太小会"搜不到合适的梗"。
 const MAX = 400;

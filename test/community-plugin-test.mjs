@@ -100,9 +100,13 @@ test('指令前置 v6 兼容补丁完整落在 37QAG 核心上', async () => {
   assert.equal(patch.PATCH_VERSION, 6);
 
   const status = patch.status({ root: ROOT });
-  assert.equal(status.state, 'patched');
+  // 0.6.0+：15→18 个块已由核心原生内置（阶段二转正），插件补丁引擎识别为 builtin，
+  // 与旧核心上的 'patched' 同属"补丁体系就绪"。两种状态都算通过。
+  assert.ok(status.state === 'patched' || status.state === 'builtin',
+    `补丁状态异常：${status.state}`);
   assert.equal(status.files.length, 18);
-  assert.ok(status.files.every((file) => file.state === 'patched'));
+  assert.ok(status.files.every((file) => file.state === 'patched' || file.state === 'builtin'),
+    `存在既非 patched 也非 builtin 的块：${status.files.filter((f) => f.state !== 'patched' && f.state !== 'builtin').map((f) => f.id + ':' + f.state).join(', ')}`);
 });
 
 test('社区插件旧版设置接口与 37QAG 正式接口兼容', () => {

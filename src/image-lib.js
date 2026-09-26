@@ -3,10 +3,10 @@
 // 用途：自我形象、指定梗图、要图时检索后 send_image。
 import fs from 'node:fs';
 import path from 'node:path';
-import { DATA_DIR } from './config.js';
+import { imagesLibDir, dataRoot } from './paths.js';
 import { logMemoryChange } from './memory-audit.js';
 
-const DIR = path.join(DATA_DIR, 'images-lib');
+const DIR = imagesLibDir();
 const FILE = path.join(DIR, 'index.json');
 const MAX = 200;
 
@@ -59,7 +59,7 @@ export function resolveImagePath(entry) {
   if (src.startsWith('file://')) return src;
   // 相对 data 目录
   if (!path.isAbsolute(src)) {
-    const abs = path.join(DATA_DIR, src);
+    const abs = path.join(dataRoot(), src);
     if (fs.existsSync(abs)) return abs;
   }
   if (fs.existsSync(src)) return src;
@@ -227,7 +227,7 @@ export function saveImageFromDataUrl(dataUrl) {
   const name = `import-${Date.now().toString(36)}-${process.pid}-${Math.random().toString(36).slice(2, 6)}.${ext}`;
   const abs = path.join(filesDir, name);
   fs.writeFileSync(abs, buf);
-  const rel = path.relative(DATA_DIR, abs).split(path.sep).join('/');
+  const rel = path.relative(dataRoot(), abs).split(path.sep).join('/');
   return { ok: true, localFile: rel, bytes: buf.length, ext, mime: mime || `image/${ext === 'jpg' ? 'jpeg' : ext}` };
 }
 
@@ -238,7 +238,7 @@ export function resolveLocalPreview(id) {
   const src = resolveImagePath(entry);
   if (/^https?:\/\//i.test(src) || src.startsWith('file://')) return null;
   if (path.isAbsolute(src) && fs.existsSync(src)) return src;
-  const abs = path.join(DATA_DIR, src);
+  const abs = path.join(dataRoot(), src);
   if (fs.existsSync(abs)) return abs;
   return null;
 }

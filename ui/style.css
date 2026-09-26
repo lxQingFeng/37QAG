@@ -9404,3 +9404,176 @@ html:not([data-ui-style='maid']) .settings-block::before { content: none; displa
   .log-row { grid-template-columns: 64px 48px 1fr; }
   .log-text { grid-column: 1 / -1; padding-left: 4px; }
 }
+
+/* ══════════════════════════════════════════════════════════════
+   素笺 UI 形态（宣纸信笺：衬线标题 + 朱砂细线 + 纸感阴影）
+   data-ui-style="sujian"（由素笺主题 id 切换，ui/designs/A-sujian 原型）
+   ══════════════════════════════════════════════════════════════ */
+[data-ui-style='sujian'] {
+  --sj-serif: "Songti SC", "Noto Serif CJK SC", "Source Han Serif SC", "SimSun", serif;
+  --sj-border: color-mix(in srgb, var(--accent) 14%, #e4dac8);
+  --sj-shadow: 0 3px 12px rgba(84, 66, 42, .08);
+}
+[data-ui-style='sujian'] .brand,
+[data-ui-style='sujian'] .page-head h2,
+[data-ui-style='sujian'] .settings-block .settings-sec-head h3,
+[data-ui-style='sujian'] .emo-panel-title,
+[data-ui-style='sujian'] .kb-hero h2,
+[data-ui-style='sujian'] .ennea-title {
+  font-family: var(--sj-serif);
+  letter-spacing: .04em;
+}
+[data-ui-style='sujian'] .settings-block .settings-sec-head h3::before {
+  content: "";
+  display: inline-block;
+  width: 7px; height: 7px;
+  background: var(--accent);
+  margin-right: 8px;
+  vertical-align: 1px;
+  opacity: .85;
+}
+[data-ui-style='sujian'] .settings-block,
+[data-ui-style='sujian'] .usage-card,
+[data-ui-style='sujian'] .emo-panel,
+[data-ui-style='sujian'] .world-switch,
+[data-ui-style='sujian'] .kb-cat-block,
+[data-ui-style='sujian'] .tier-panel,
+[data-ui-style='sujian'] .ext-row,
+[data-ui-style='sujian'] .perchat-item,
+[data-ui-style='sujian'] .ennea-card,
+[data-ui-style='sujian'] .price-card {
+  border-radius: 8px;
+  border-color: var(--sj-border);
+  box-shadow: var(--sj-shadow);
+}
+[data-ui-style='sujian'] .session-item.is-selected { box-shadow: var(--sj-shadow); }
+[data-ui-style='sujian'] ::-webkit-scrollbar-thumb {
+  background: #d8ccb6;
+  border-radius: 8px;
+  border: 2px solid var(--bg, #f7f3ea);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   深空控制台 UI 形态（HUD：等宽数字 + 扫描线 + 角括号 + 发光下划线）
+   data-ui-style="deepspace"（由深空主题 id 切换，ui/designs/B-deep-space 原型）
+   ══════════════════════════════════════════════════════════════ */
+[data-ui-style='deepspace'] {
+  --ds-mono: "SF Mono", "Cascadia Code", "JetBrains Mono", Consolas, "PingFang SC", monospace;
+  --ds-border: color-mix(in srgb, var(--accent) 22%, #1c2a44);
+}
+[data-ui-style='deepspace'] body {
+  background-image: repeating-linear-gradient(0deg,
+    rgba(76, 201, 240, .03) 0 1px, transparent 1px 3px);
+}
+[data-ui-style='deepspace'] .brand-tag,
+[data-ui-style='deepspace'] .list-title,
+[data-ui-style='deepspace'] .nav-state,
+[data-ui-style='deepspace'] .usage-num,
+[data-ui-style='deepspace'] .run-sec,
+[data-ui-style='deepspace'] .usage-unit {
+  font-family: var(--ds-mono);
+  letter-spacing: .18em;
+  font-size: 10.5px;
+}
+[data-ui-style='deepspace'] .settings-block .settings-sec-head h3::before {
+  content: "//";
+  color: var(--accent);
+  font-family: var(--ds-mono);
+  margin-right: 8px;
+  font-size: 11px;
+}
+[data-ui-style='deepspace'] .settings-block,
+[data-ui-style='deepspace'] .usage-card,
+[data-ui-style='deepspace'] .emo-panel,
+[data-ui-style='deepspace'] .world-switch,
+[data-ui-style='deepspace'] .kb-cat-block,
+[data-ui-style='deepspace'] .tier-panel,
+[data-ui-style='deepspace'] .ext-row,
+[data-ui-style='deepspace'] .perchat-item,
+[data-ui-style='deepspace'] .ennea-card,
+[data-ui-style='deepspace'] .price-card {
+  border-radius: 6px;
+  border-color: var(--ds-border);
+  box-shadow: inset 0 1px 0 rgba(76, 201, 240, .12);
+}
+/* HUD 角括号：选中项四角 1.5px 冰青线（原型 .runstate 的做法） */
+[data-ui-style='deepspace'] .session-item.is-selected,
+[data-ui-style='deepspace'] .theme-preset-chip.is-on {
+  position: relative;
+  border-color: color-mix(in srgb, var(--accent) 55%, #1c2a44);
+}
+[data-ui-style='deepspace'] .session-item.is-selected::before,
+[data-ui-style='deepspace'] .session-item.is-selected::after,
+[data-ui-style='deepspace'] .theme-preset-chip.is-on::before,
+[data-ui-style='deepspace'] .theme-preset-chip.is-on::after {
+  content: "";
+  position: absolute;
+  width: 9px; height: 9px;
+  pointer-events: none;
+}
+[data-ui-style='deepspace'] .session-item.is-selected::before,
+[data-ui-style='deepspace'] .theme-preset-chip.is-on::before {
+  top: -1px; left: -1px;
+  border-top: 1.5px solid var(--accent);
+  border-left: 1.5px solid var(--accent);
+}
+[data-ui-style='deepspace'] .session-item.is-selected::after,
+[data-ui-style='deepspace'] .theme-preset-chip.is-on::after {
+  bottom: -1px; right: -1px;
+  border-bottom: 1.5px solid var(--accent);
+  border-right: 1.5px solid var(--accent);
+}
+/* 发光下划线（原型 tab.is-active） */
+[data-ui-style='deepspace'] .session-item.is-selected { box-shadow: 0 0 10px rgba(76, 201, 240, .25); }
+[data-ui-style='deepspace'] ::-webkit-scrollbar-thumb {
+  background: #1c2a44;
+  border-radius: 8px;
+  border: 2px solid var(--bg, #0a0f1c);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   暖房 UI 形态（居家暖调：药丸圆角 + 暖色渐变主按钮 + 内高光）
+   data-ui-style="warmroom"（由暖房主题 id 切换，ui/designs/C-warm-room 原型）
+   ══════════════════════════════════════════════════════════════ */
+[data-ui-style='warmroom'] {
+  --wr-shadow: 0 3px 10px rgba(224, 122, 95, .16);
+}
+[data-ui-style='warmroom'] .settings-block,
+[data-ui-style='warmroom'] .usage-card,
+[data-ui-style='warmroom'] .emo-panel,
+[data-ui-style='warmroom'] .world-switch,
+[data-ui-style='warmroom'] .kb-cat-block,
+[data-ui-style='warmroom'] .tier-panel,
+[data-ui-style='warmroom'] .ext-row,
+[data-ui-style='warmroom'] .perchat-item,
+[data-ui-style='warmroom'] .ennea-card,
+[data-ui-style='warmroom'] .price-card {
+  border-radius: 16px;
+  border-color: #ecd9bf;
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, .5), var(--wr-shadow);
+}
+[data-ui-style='warmroom'] .btn,
+[data-ui-style='warmroom'] .btn-primary,
+[data-ui-style='warmroom'] .theme-preset-chip,
+[data-ui-style='warmroom'] .more-popover button {
+  border-radius: 999px;
+}
+[data-ui-style='warmroom'] .btn-primary,
+[data-ui-style='warmroom'] .theme-preset-chip.is-on {
+  background: linear-gradient(145deg, #e98b6d, #d56b4e);
+  border: none;
+  color: #fff8ee;
+  box-shadow: 0 3px 10px rgba(224, 122, 95, .35);
+}
+[data-ui-style='warmroom'] .theme-preset-chip.is-on .tp-name,
+[data-ui-style='warmroom'] .theme-preset-chip.is-on { color: #fff8ee; }
+[data-ui-style='warmroom'] .session-item.is-selected {
+  border-radius: 14px;
+  box-shadow: var(--wr-shadow);
+}
+[data-ui-style='warmroom'] ::-webkit-scrollbar-thumb {
+  background: #e0cdb4;
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}

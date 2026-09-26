@@ -651,7 +651,7 @@ function createWindow(port) {
     }
   });
   Menu.setApplicationMenu(null);
-  // ── [[command-gateway:reload-shortcut]] 「指令前置」插件自动维护，不要手改这一段 ──
+  // 核心内置（阶段二转正）：无菜单栏时补上 Ctrl+R / F5 页面重载
   // 菜单被去掉了，Ctrl+R / F5 默认不会重载页面 —— 换掉 ui/ 下的文件后，
   // 用户在软件里就没法让界面吃到新版（只能关掉软件重开）。这里补上快捷键。
   // 前端资源是 no-cache，所以重载一定能拿到最新的 app.js / style.css。
@@ -663,7 +663,7 @@ function createWindow(port) {
     event.preventDefault();
     mainWindow?.webContents.reload();
   });
-  // ── [[/command-gateway:reload-shortcut]] ──
+
   // ready-to-show 可能永远不来 → 1s 强制亮相；窗口默认 show:true 也兜底
   let shown = false;
   const showOnce = () => {

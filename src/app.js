@@ -21,11 +21,13 @@ import { initPriceFeed, refreshPriceFeed, priceFeedStatus } from './price-feed.j
 import { importFromDsh, currentProviders, setProviderKey, testAllProviders, testOneProvider, testModelChat, fetchModelsFrom, upsertProvider, addModelsToProvider, removeModelFromProvider } from './providers.js';
 import { scanModelsVision, visionResults, modelImageVerdict } from './vision-scan.js';
 import { builtinVisionResults } from './model-vision-docs.js';
-import { createEventBus, todayKey, sweepStaleTmp } from './util.js';
+import {createEventBus, todayKey, sweepStaleTmp, openPath, openInBrowser} from './util.js';
 import { getUsageLedger } from './usage-ledger.js';
 import { getConversationMemory, startConversationMemoryMaintenance, stopConversationMemoryMaintenance } from './conversation-memory/runtime.js';
-import { startCrazyThursday, stopCrazyThursday } from './crazy-thursday.js';
-import { stopApiNewsScheduler } from './api-news.js';
+import { loadModules, disposeModules, moduleStatus, watchModules } from './module-loader.js';
+import { matchRoute } from './module-registry.js';
+import { migrateLegacyLayout, personasDir } from './paths.js';
+import { seedBuiltinPersonas, mergedPersonaTemplates, parsePersonaContent, PERSONA_FILE_EXTS } from './persona-files.js';
 import { costGuardStats } from './conversation-memory/cost-guard.js';
 import { activeTodos } from './conversation-memory/pending.js';
 import { listAllMemes, saveMeme, removeMeme, memeCount } from './memes.js';
@@ -121,6 +123,18 @@ function allowed(kind, id, cfg) {
 
 export function createApp({ log = console.log } = {}) {
   const cfg = getConfig();
+
+  // ── 阶段二：旧数据布局一次性迁移（幂等）──
+  // command_data/<id> → plugin-data/<id>；根目录 launch-log.txt → data/logs/。
+  // 详见 src/paths.js 的 migrateLegacyLayout。
+  try {
+    const moves = migrateLegacyLayout({ log });
+    if (moves.length) log('[paths] 旧数据布局已迁移：', moves.join('；'));
+  } catch (e) { log('[paths] 布局迁移失败（不阻塞启动）：', e?.message ?? e); }
+  try {
+    seedBuiltinPersonas({ log });
+  } catch (e) { log('[personas] 播种失败（不阻塞启动）：', e?.message ?? e); }
+
   const bus = createEventBus();
   const sseClients = new Set();
   // 界面顶部提醒（例如"你连的可能是别的实例的 SnowLuma"），随 /api/status 一起给前端
@@ -464,12 +478,18 @@ function selfDescriptor() {
       return { ok: true, alreadyRunning: true };
     }
     const indexMjs = path.join(dir, 'index.mjs');
-    const nodeExe = path.join(dir, 'node.exe');
-    if (fs.existsSync(indexMjs) && fs.existsSync(nodeExe)) {
+    // ── 跨平台 node 二进制候选（阶段二）──
+    // Windows 便携包带 node.exe；Linux/macOS 发行包带无后缀 node；
+    // 都没有时退回 PATH 里的 node（用户自装）。顺序：平台匹配 → 另一个名字 → PATH。
+    const nodeBin = [
+      path.join(dir, process.platform === 'win32' ? 'node.exe' : 'node'),
+      path.join(dir, process.platform === 'win32' ? 'node' : 'node.exe')
+    ].find((p) => fs.existsSync(p)) || 'node';
+    if (fs.existsSync(indexMjs) && nodeBin) {
       try {
         // 用 Windows 的 CREATE_NEW_PROCESS_GROUP + 独立进程方式启动，
         // 让 SnowLuma 真正独立于 Electron 主进程（Electron 退出时不会拖垮它）。
-        const child = spawn(nodeExe, [indexMjs], {
+        const child = spawn(nodeBin, [indexMjs], {
           cwd: dir,
           stdio: ['ignore', 'pipe', 'pipe'],
           windowsHide: true,
@@ -503,15 +523,24 @@ function selfDescriptor() {
         snowlumaProc = null;
       }
     }
-    // 回退：launcher.bat 独立控制台窗口（老行为，日志无法内置）
-    const launcher = path.join(dir, 'launcher.bat');
-    if (!fs.existsSync(launcher)) return { ok: false, error: `目录里没有 index.mjs / node.exe，也没有 launcher.bat：${dir}` };
-    const child = spawn('cmd.exe', ['/c', launcher], {
-      cwd: dir,
-      detached: true,
-      stdio: 'ignore',
-      windowsHide: false // 保留 SnowLuma 自己的控制台窗口
-    });
+    // 回退：launcher 独立控制台窗口（老行为，日志无法内置）。
+    // Windows 用 launcher.bat + cmd；Linux/macOS 用 launcher.sh + sh（发行包提供）。
+    const launcher = process.platform === 'win32'
+      ? [path.join(dir, 'launcher.bat')]
+      : [path.join(dir, 'launcher.sh'), path.join(dir, 'launcher.bat')].filter((f) => fs.existsSync(f))[0];
+    if (!launcher) return { ok: false, error: `目录里没有 index.mjs / node，也没有 launcher 脚本：${dir}` };
+    const child = process.platform === 'win32'
+      ? spawn('cmd.exe', ['/c', launcher], {
+        cwd: dir,
+        detached: true,
+        stdio: 'ignore',
+        windowsHide: false // 保留 SnowLuma 自己的控制台窗口
+      })
+      : spawn('sh', [launcher], {
+        cwd: dir,
+        detached: true,
+        stdio: 'ignore'
+      });
     child.unref();
     pushSnowlumaLog('SnowLuma 已用独立控制台窗口启动（此模式下日志不进内置控制台）', 'stdout');
     return { ok: true, launched: true, embedded: false };
@@ -615,8 +644,16 @@ function selfDescriptor() {
     log('[skill] 扩展已加载：', listExtensionStatus().filter((s) => s.loaded).map((s) => s.id).join(', ') || '（空）');
   }).catch((e) => log('[skill] 扩展初始化失败:', e?.message ?? e));
 
-  // 每周四 7/13/19 点直发疯狂星期四（不走 LLM/人设）
-  startCrazyThursday({ sender, log });
+  // ── 内置功能模块（阶段二：modules/ 目录）──
+  // crazy-thursday / api-news / themes 从核心硬编码改为模块挂载（见 docs/阶段二改造说明.md）。
+  // 与扩展底座同样采用异步装载（createApp 是同步函数，模块加载失败不阻塞核心启动）。
+  loadModules({ log, context: extensionContext() }).then(() => {
+    if (getConfig().extensions?.hotReload !== false) {
+      watchModules({ log });
+    }
+    const mods = moduleStatus();
+    log('[modules] 内置模块已加载：', mods.map((m) => `${m.id}${m.ok ? '' : '（失败）'}`).join(', ') || '（空）');
+  }).catch((e) => log('[modules] 模块加载失败:', e?.message ?? e));
 
   // 本地 Jev 旁路：包内 0.8B + llama-server（失败不影响主链路）。
   // secondary 备用模型已下线；modelPath 为空时 ensure 是空操作。
@@ -642,7 +679,7 @@ function selfDescriptor() {
   initPriceFeed(cfg.api?.priceRemoteUrl || '');
 
   // 免费 API 情报：每天凌晨 4 点自动刷新（服务器内定时）
-  import('./api-news.js')
+  import('./modules/api-news/impl.js')
     .then(({ startApiNewsScheduler }) => startApiNewsScheduler())
     .catch(() => { /* 定时器起不来不影响主流程 */ });
 
@@ -848,9 +885,9 @@ function selfDescriptor() {
 
     if (!text && !media.length) return;
 
-    // ── [[command-gateway:dispatch]] 「指令前置」插件自动维护，不要手改这一段 ──
-    // ── 指令前置：在存档与会话创建之前，给「指令前置」插件一次认领机会 ──
-    // 约定（见 plugins/command-gateway/README.md）：
+    // ── 会话前拦截点（核心内置，阶段二转正；协议与 plugins/command-gateway 兼容）──
+    // 任何声明了 command.dispatch 能力的插件/模块都会在这里获得一次认领机会。
+    // 契约（见 plugins/command-gateway/README.md 与 docs/阶段二改造说明.md）：
     //   · dispatch 必须**同步**返回 { handled }；认领后要做的异步工作放进 run()，
     //     这样消息热路径不等待网络/模型调用；
     //   · handled = true → 不存档、不触发会话，彻底不诞生这条会话；
@@ -1000,7 +1037,7 @@ function selfDescriptor() {
         (e) => pluginHost.log(`[media] 链接转发失败：${e?.message ?? e}`)
       );
     }
-    // ── [[/command-gateway:dispatch]] ──
+    // ── 会话前拦截点结束 ──
 
     const incoming = store.appendIncoming(`${kind}:${id}`, {
       mid: event.message_id,
@@ -1279,6 +1316,17 @@ function selfDescriptor() {
       const method = req.method;
       const cfgNow = getConfig();
 
+      // ── 模块路由注册表（阶段二）──
+      // modules/ 与未来模块化插件注册的 API 路由优先分发；未命中再走下面的核心 if 链。
+      const moduleHit = matchRoute(method, pathname);
+      if (moduleHit) {
+        try {
+          return await moduleHit.handler(req, res, { json, readBody, url, params: moduleHit.params, moduleId: moduleHit.moduleId });
+        } catch (error) {
+          return json(res, 500, { ok: false, error: `模块路由 ${moduleHit.moduleId} ${pathname} 执行失败：${error?.message ?? error}` });
+        }
+      }
+
       // 后台「日志」页：汇总应用日志与 SnowLuma 输出，支持模块/级别/关键词筛选。
       if (pathname === '/api/logs' && method === 'GET') {
         const source = String(url.searchParams.get('source') || 'all');
@@ -1475,13 +1523,7 @@ function selfDescriptor() {
           }
         }
         try {
-          if (process.platform === 'win32') {
-            spawn('explorer.exe', [resolved], { detached: true, stdio: 'ignore' }).unref();
-          } else if (process.platform === 'darwin') {
-            spawn('open', [resolved], { detached: true, stdio: 'ignore' }).unref();
-          } else {
-            spawn('xdg-open', [resolved], { detached: true, stdio: 'ignore' }).unref();
-          }
+          openPath(resolved);
           return json(res, 200, { ok: true, path: resolved });
         } catch (error) {
           return json(res, 500, { ok: false, error: String(error?.message ?? error), path: resolved });
@@ -1702,71 +1744,18 @@ function selfDescriptor() {
       if (pathname === '/api/snowluma/open-folder' && method === 'POST') {
         const dir = snowlumaDir();
         if (!dir) return json(res, 400, { ok: false, error: '找不到 SnowLuma 目录' });
-        spawn('explorer.exe', [dir], { detached: true, stdio: 'ignore' }).unref();
+        if (!openPath(dir)) return json(res, 500, { ok: false, error: '当前平台无法打开目录（无文件管理器命令）' });
         return json(res, 200, { ok: true });
       }
 
       if (pathname === '/api/snowluma/open-webui' && method === 'POST') {
         const webuiUrl = snowlumaWebuiUrl();
         if (!webuiUrl) return json(res, 400, { ok: false, error: '没有找到 SnowLuma WebUI 地址（等日志出现 listening 后再试）' });
-        spawn('cmd.exe', ['/c', 'start', '', webuiUrl], { detached: true, stdio: 'ignore' }).unref();
+        if (!openInBrowser(webuiUrl)) return json(res, 500, { ok: false, error: '当前平台无法打开浏览器' });
         return json(res, 200, { ok: true, webuiUrl });
       }
 
-      // ── 自定义主题：内置预设 + themes/ 目录（规范见 themes/THEME_FORMAT.txt）──
-      if (pathname === '/api/themes' && method === 'GET') {
-        const { listThemes } = await import('./themes.js');
-        return json(res, 200, {
-          ok: true,
-          dir: 'themes',
-          current: getConfig().ui?.customThemeId || '',
-          formatDoc: 'themes/THEME_FORMAT.txt',
-          themes: listThemes()
-        });
-      }
-      if (pathname === '/api/themes/import' && method === 'POST') {
-        const body = await readBody(req).catch(() => ({}));
-        const { importTheme } = await import('./themes.js');
-        try {
-          const th = importTheme(String(body?.content || ''), { filename: String(body?.filename || '') });
-          // 导入即应用：写 ui 配色 + custom 主题 + 主题 id
-          updateConfig({
-            ui: {
-              ...(getConfig().ui || {}),
-              theme: 'custom',
-              customThemeId: th.id,
-              customBg: th.colors.bg || '',
-              customBg2: th.colors.bg2 || '',
-              customAccent: th.colors.accent || '',
-              customText: th.colors.text || '',
-              customToolAccent: th.colors.toolAccent || th.colors.accent || ''
-            }
-          });
-          return json(res, 200, { ok: true, theme: th });
-        } catch (error) {
-          return json(res, 400, { ok: false, error: String(error?.message || error) });
-        }
-      }
-      if (pathname === '/api/themes/apply' && method === 'POST') {
-        const body = await readBody(req).catch(() => ({}));
-        const { getThemeById } = await import('./themes.js');
-        const id = String(body?.id || '').trim();
-        const th = getThemeById(id);
-        if (!th) return json(res, 404, { ok: false, error: '找不到主题：' + id });
-        updateConfig({
-          ui: {
-            ...(getConfig().ui || {}),
-            theme: 'custom',
-            customThemeId: th.id,
-            customBg: th.colors.bg || '',
-            customBg2: th.colors.bg2 || '',
-            customAccent: th.colors.accent || '',
-            customText: th.colors.text || '',
-            customToolAccent: th.colors.toolAccent || th.colors.accent || ''
-          }
-        });
-        return json(res, 200, { ok: true, theme: th });
-      }
+      // ── 自定义主题三条路由（GET /api/themes、POST import|apply）已由 modules/themes 模块接管 —— 阶段二迁移 ──
 
       // ── 体检/引导相关 ──
       if (pathname === '/api/onebot/groups' && method === 'GET') {
@@ -1792,8 +1781,8 @@ function selfDescriptor() {
       }
 
       if (pathname === '/api/persona-templates' && method === 'GET') {
-        const { PERSONAS } = await import('./personas.js');
-        const builtins = Object.entries(PERSONAS).map(([id, p]) => ({ id, name: p.name, text: p.text, builtin: true }));
+        // 阶段四三层合并：data/personas/ 文件层（用户可改，覆盖内置同 id）> 源码内置 > config.customPersonas（旧机制）
+        const fileAndBuiltin = mergedPersonaTemplates({ log });
         const customs = (getConfig().customPersonas || []).map((p, i) => ({
           id: `custom_${i}`,
           name: p.name,
@@ -1801,7 +1790,7 @@ function selfDescriptor() {
           customRules: p.customRules || '',
           builtin: false
         }));
-        return json(res, 200, { templates: [...builtins, ...customs] });
+        return json(res, 200, { templates: [...fileAndBuiltin, ...customs], personaDir: 'data/personas/' });
       }
 
       // 用户自定义人设：新增 / 删除
@@ -1816,6 +1805,43 @@ function selfDescriptor() {
         const next = [...(getConfig().customPersonas || []), entry];
         updateConfig({ customPersonas: next });
         return json(res, 200, { ok: true, templates: next });
+      }
+
+      // 人设文件导入（2026-09-26 新增）：.txt / .md / .json 整文件写入 data/personas/
+      // 文件层（放入即生效，与直接拖文件进目录等价）。客户端只传「文件名 + 全文」，
+      // 服务端用与目录扫描同一套 parsePersonaContent 先校验再落盘，坏内容 400 不落盘。
+      // 与上面的 POST（config.customPersonas）共存：导入落文件层，删除 = 删文件，config 不动。
+      if (pathname === '/api/persona-templates/import' && method === 'POST') {
+        const body = await readBody(req).catch(() => ({}));
+        // 文件名白名单：basename（防路径穿越）+ 扩展名校验 + 去控制字符
+        const rawName = String(body.filename ?? '').trim();
+        const safeName = path.basename(rawName).replace(/[\u0000-\u001f\u007f]/g, '');
+        const ext = path.extname(safeName).toLowerCase();
+        if (!safeName || safeName === '.' || safeName === '..' || !PERSONA_FILE_EXTS.includes(ext)) {
+          return json(res, 400, { ok: false, error: '文件名不合法（支持 .txt / .md / .json）' });
+        }
+        const content = String(body.content ?? '');
+        if (!content.trim()) return json(res, 400, { ok: false, error: '文件内容为空' });
+        if (content.length > 200_000) return json(res, 400, { ok: false, error: '文件内容过长（超过 20 万字符）' });
+        const parsed = parsePersonaContent(safeName, content);
+        if (!parsed) return json(res, 400, { ok: false, error: '无法解析成人设（空内容 / 坏 JSON / 缺正文）' });
+        try {
+          fs.mkdirSync(personasDir(), { recursive: true });
+          const dest = path.join(personasDir(), safeName);
+          fs.writeFileSync(dest, content, 'utf8');   // 同名再导入 = 覆盖更新（与拖文件进目录语义一致）
+          // 常规部署（data 在项目根下）给相对路径 data/personas/xxx；
+          // 数据目录被环境变量搬去别处时 path.relative 会产生一堆 ../，退回绝对路径更好读。
+          const rel = path.relative(ROOT, dest).replace(/\\/g, '/');
+          return json(res, 200, {
+            ok: true,
+            id: parsed.id,
+            name: parsed.name,
+            file: rel.startsWith('..') ? String(dest) : rel,
+            chars: parsed.text.length
+          });
+        } catch (error) {
+          return json(res, 500, { ok: false, error: String(error?.message ?? error) });
+        }
       }
 
       const personaDeleteMatch = /^\/api\/persona-templates\/(custom_\d+)$/.exec(pathname);
@@ -2567,26 +2593,7 @@ function selfDescriptor() {
       }
 
       // 成本护栏状态
-      // API 情报：免费额度 / 降价 / 开放类资讯（按天缓存，可手动刷新）
-      if (pathname === '/api/api-news' && method === 'GET') {
-        try {
-          const { getApiNews, apiNewsStatus } = await import('./api-news.js');
-          const force = url.searchParams.get('force') === '1';
-          const data = await getApiNews({ force });
-          return json(res, 200, { ...data, status: apiNewsStatus() });
-        } catch (error) {
-          return json(res, 200, { ok: false, error: String(error?.message ?? error), items: [] });
-        }
-      }
-      if (pathname === '/api/api-news' && method === 'POST') {
-        try {
-          const { refreshApiNews, apiNewsStatus } = await import('./api-news.js');
-          const data = await refreshApiNews();
-          return json(res, data.ok === false ? 500 : 200, { ...data, status: apiNewsStatus() });
-        } catch (error) {
-          return json(res, 500, { ok: false, error: String(error?.message ?? error), items: [] });
-        }
-      }
+      // （/api/api-news GET/POST 已由 modules/api-news 模块路由接管 —— 阶段二迁移）
 
       if (pathname === '/api/cost-guard' && method === 'GET') {
         return json(res, 200, {
@@ -3084,7 +3091,7 @@ function selfDescriptor() {
     // 静态 UI
 
 
-    // ── [[command-gateway:plugin-assets]] 「指令前置」插件自动维护，不要手改这一段 ──
+    // ── 插件静态资源服务（核心内置，阶段二转正）──
     // 插件自带的静态资源：/plugin-assets/<插件id>/<文件>
     //
     // 用途：插件把自己的设置页模块（settings-ui.js）放在插件目录里，由控制台动态加载。
@@ -3141,7 +3148,7 @@ function selfDescriptor() {
       }
     }
 
-    // ── [[/command-gateway:plugin-assets]] ──
+    // ── 插件静态资源服务结束 ──
 
     if (req.method === 'GET') {
       // 路径穿越防护：
@@ -3390,8 +3397,7 @@ function selfDescriptor() {
     try { server.closeAllConnections?.(); } catch { /* ignore */ }
     try { server.close(); } catch { /* ignore */ }
     try { snowlumaProc?.kill(); } catch { /* ignore */ }
-    try { stopCrazyThursday(); } catch { /* ignore */ }
-    try { stopApiNewsScheduler(); } catch { /* ignore */ }
+    try { disposeModules({ log }); } catch { /* ignore */ }
     try { await stopLocalJev(); } catch { /* ignore */ }
   }
 
