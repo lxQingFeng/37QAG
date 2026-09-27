@@ -142,8 +142,13 @@ export const DEFAULT_CONFIG = {
     // toolGate = 'off'    → 每轮全量注入（0.5 行为）
     //           | 'rules'（默认）→ 规则分类：纯闲聊轮只注入常驻工具（省 search/media/memory
     //                                三类 schema token），判不准则全量保底。零成本、零延迟。
+    //                                jev 级联 PR1 起：技能工具与技能提示词段同源参与门控。
     //           | 'jev'  → 规则判不准时再问本地 Jev「这轮要不要查资料/看图」（+≤1 次本地推理，
     //                        换更准的裁剪；本地没起时自动退回 rules 行为）
+    //           | 'jev2' → jev 级联 PR2：规则判不准时问本地 Jev 五分类「接这句要 查/图/忆/技/闲」，
+    //                        label 直接映射该开的类别（工具+技能提示词同源裁剪，比 jev 档更细）。
+    //                        弃权/失败/超时→全量保底；五分类 0.8B 未实测，不达标退回 jev 档即可
+    //                        （同一开关换值，无额外清理）。
     toolGate: 'rules',
     // 工具结果硬上限（防单轮 token 爆炸）：单工具结果截断 / 每轮累计预算（字符）
     toolResultMaxChars: 6000,
@@ -597,7 +602,11 @@ export const DEFAULT_CONFIG = {
       'memeSaveGate',
       'wikiGate',
       // 生活账本的主语判定（"我更饿了" vs "你饿不饿"）。低风险：判错只是多记/少记一条近况。
-      'selfStateGate'
+      'selfStateGate',
+      // jev 级联 PR2·技能路由五分类（toolGate=jev2 时被调用；仅 rules/jev 档不受影响）。
+      // 进默认表是为了 migrateLocalJev 能把它补进老配置的 roles（避免"勾了也不生效"的
+      // 静默失效坑）；真正激活靠 api.toolGate='jev2'。
+      'skillRouteGate'
       // ⚠️ 2026-09-21 实测后**不进默认表**：impressionPickGate（"落榜的那条印象跟现在这句话
       //   有关吗"）在 30 条真数据上只有 20/30，且错的方向是过度 YES（把"音乐口味""高达模型"
       //   判成跟"今天好累""睡了明天见"有关）。字面重合那部分已由 memory.js 的

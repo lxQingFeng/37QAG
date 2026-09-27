@@ -48,6 +48,13 @@ export const JEV_ROLES = {
       + '连它自己 few-shot 里标着 say 的「草 没上农你发这干嘛」都会被判 skip。'
       + '弃权时会被调用方整批退回云端裁判重判（判得准，但这次本地推理等于白跑）。'
   },
+  skillRouteGate: {
+    cn: '接话需要什么（五分类·jev2）',
+    desc: 'jev 级联 PR2：api.toolGate=jev2 时，规则判不准的短消息问一次「接这句要 查/图/忆/技/闲」——'
+      + '五分类直接给出该开哪些类别的工具与技能提示词（与 PR1 规则层共用类别目录）。判「闲」只留常驻；'
+      + '弃权/失败/超时自动全量保底。⚠️ 五分类在 0.8B 上未实测（真机盲测留待用户），不达标可退回 jev 档（二分类已实测）。',
+    risk: '低-中：判错方向是多带类别（多花一点 token）；判「闲」过头会少带工具，但常驻工具保底能开口、下一轮触发批会重判'
+  },
   toolNeedGate: {
     cn: '这轮要不要查资料/看图（工具门控）',
     desc: '规则分不清的短消息，问一次「这轮要不要查资料、看图或翻记录」。判 CHAT 就只给发言类工具'
@@ -1214,6 +1221,37 @@ export const JEV_GATE_SPECS = {
     ],
     positive: 'TOOL'
   },
+  // ── jev 级联 PR2·技能路由五分类：「接这句话需要什么」──────────────────
+  // 用途：api.toolGate='jev2' 时，规则层判 unknown 的短消息问这一题（替代
+  // toolNeedGate 的 TOOL/CHAT 二分，把类别判定一次做完）。单标签输出（jevAsk
+  // 形状限制），多类别需求由规则层信号词并集补足（方案 §2.2）。
+  // label → 门控类别映射见 spec.map；「闲」→ 常驻；弃权/失败/超时 → 全量保底。
+  // ⚠️ **五分类在 0.8B 上未实测**（方案 §2.2 唯一需实验验证的点，盲测任务留
+  //    给真机：建议沿用 jev-burst-lab 的真实消息时间线抽 20-30 例标注验证；
+  //    不达标降级路径见方案 §4：退回 toolGate='jev'（二分类已实测 86%）。
+  // positive: null —— 多分类角色，on 无意义，调用方直接取 r.label 过 map。
+  skillRouteGate: {
+    labels: ['闲', '查', '图', '忆', '技'],
+    instruction: '群里有人说话了。判断机器人接这句需要什么。要查资料、搜网页、看新闻，选「查」；要看图、识图、看视频，选「图」；要翻聊天记录或回忆以前的事，选「忆」；要用计算器、生成图片、小游戏这类现成技能，选「技」；凭现在聊的内容直接就能接，选「闲」。',
+    examples: [
+      ['今天A股怎么样', '查'],
+      ['明天上海天气', '查'],
+      ['帮我算下128乘46', '技'],
+      ['画一张猫猫表情包', '技'],
+      ['来一把猜数字', '技'],
+      ['你上次推荐的那本书叫啥', '忆'],
+      ['我们之前说好的那个约定还记得吗', '忆'],
+      ['看看这张图是什么梗', '图'],
+      ['这个视频讲的啥', '图'],
+      ['哈哈哈哈笑死', '闲'],
+      ['行吧 那先这样', '闲'],
+      ['睡了睡了 明天还要早起', '闲']
+    ],
+    // label → verdict cats（与 tool-gate.js 的类别目录同源）。
+    // 「技」= 三个 ext 类全开（宁多勿少：技能类别错分方向是多带，无功能损失）。
+    map: { '查': ['search'], '图': ['media'], '忆': ['memory'], '技': ['ext-info', 'ext-fun', 'ext-text'], '闲': [] },
+    positive: null
+  },
   // ── 连发合并（自适应防抖）：「他这句说完了没有」────────────────────────
   // 用途见 orchestrator#burstDelayMs：原来纯靠死计时（等 settle 秒看还有没有下句），
   // 现在先问这一句，判「说完了」就把等待缩回 wakeDelayMs。
@@ -1525,6 +1563,11 @@ export const JEV_GATE_SPECS = {
  * 按角色问一次。返回 { on:boolean, label, p, margin, abstain, error? }；
  * 任何失败/低置信都 on:false —— 调用方保持原逻辑（只会更保守，不会更激进）。
  * channel 见 jevAsk（'local' | 'cloud' | 'auto'）。
+ *
+ * ⚠️ 多分类角色（spec.positive === null，如 skillRouteGate）：on 恒 false、
+ *   **语义由 label 承载**——调用方直接取 r.label 查 spec.map 解释类别，
+ *   不要用 on（方案 §3.3.2：jevGate 支持「无 positive 的角色」）。
+ *   r.abstain / r.error 仍按「弃权/失败」处理，由调用方走保底。
  */
 export async function jevGate(role, input, {
   timeoutMs, minConfidence, minMargin, channel, runContext = null, decisionKey = '', signal = null

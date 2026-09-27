@@ -170,3 +170,36 @@ export const TOOL_GATE_JEV_SPEC = Object.freeze({
   ]),
   positive: 'TOOL'
 });
+
+// ── jev 级联 PR2：skillRouteGate 五分类 label → 门控类别 ─────────────────────
+// ⚠️ 与 local-jev.js JEV_GATE_SPECS.skillRouteGate.map 保持一致（防两处漂移，
+//    一致性由 test/tool-gate-test.mjs 断言 —— 同 TOOL_GATE_JEV_SPEC 的做法）。
+export const SKILL_ROUTE_LABEL_CATS = Object.freeze({
+  '闲': Object.freeze([]),
+  '查': Object.freeze(['search']),
+  '图': Object.freeze(['media']),
+  '忆': Object.freeze(['memory']),
+  '技': Object.freeze(['ext-info', 'ext-fun', 'ext-text'])
+});
+
+/**
+ * jev 级联 PR2：skillRouteGate 判定 → 门控 verdict（纯函数，沙箱可 mock 测试）。
+ * @param {{label?: string|null, p?: number, margin?: number}} jev jevGate 的返回
+ *   （调用方保证已过滤 error/abstain 才进来；这里只做 label 解释）
+ * @param {Record<string, string[]>} [catMap] label→类别（默认 SKILL_ROUTE_LABEL_CATS）
+ * @returns {{ need: 'none'|'cats'|'all', cats: string[], reason: string }}
+ *   「闲」→ none（只留常驻）；查/图/忆/技 → cats；label 未映射（防御）→ all 全量保底。
+ */
+export function skillRouteVerdict(jev, catMap = null) {
+  const map = catMap || SKILL_ROUTE_LABEL_CATS;
+  const label = String(jev?.label ?? '').trim();
+  const p = Number(jev?.p) || 0;
+  const margin = Number(jev?.margin) || 0;
+  const cats = Object.prototype.hasOwnProperty.call(map, label) ? map[label] : undefined;
+  if (Array.isArray(cats)) {
+    return cats.length
+      ? { need: 'cats', cats: [...cats], reason: `jev2:${label}(p=${p.toFixed(2)},margin=${margin.toFixed(1)})` }
+      : { need: 'none', cats: [], reason: `jev2:${label}` };
+  }
+  return { need: 'all', cats: [], reason: `jev2:label未映射(${label || '空'})→全量保底` };
+}

@@ -38,7 +38,7 @@ import { modelImageVerdict } from './vision-scan.js';
 import { buildStickerContext } from './stickers.js';
 import { judgeTextOnly, judgeUnsentLines } from './salvage.js';
 import { localJevHasRole, jevEmotionHint, jevGateBundle, jevGate, jevCueKind, jevStickerPick, jevReplyChance, jevBurstDone, computeGroupHeat, resolveReplyChanceParams, checkInterjectQuota } from './local-jev.js';
-import { classifyToolNeed, filterToolDefs, truncateToolResult, toolResultBudgetLeft } from './tool-gate.js';
+import { classifyToolNeed, filterToolDefs, skillRouteVerdict, truncateToolResult, toolResultBudgetLeft } from './tool-gate.js';
 import { isQuietProtocolText, isReplyPlanningText, rememberReplyDraft, selectGroundedReplies, fitReplyBubbles } from './reply-recovery.js';
 import { currentProviders } from './providers.js';
 import { decideMemoryRecall, decideParticipation, detectParticipationRoute, looksLikeExplicitRequest } from './decision-policy.js';
@@ -1569,11 +1569,17 @@ export class Orchestrator {
       toolGateVerdict = classifyToolNeed(gateText, {
         hasImage: (session.wakeImages || session.triggerImages || 0) > 0
       });
-      if (toolGateVerdict.need === 'unknown' && toolGateMode === 'jev') {
+      // 规则判不准的短消息：'jev' 档问二分类（TOOL/CHAT）；'jev2' 档问五分类
+      //（闲/查/图/忆/技，skillRouteVerdict 把 label 映射为门控类别，纯函数可测）。
+      // 弃权/失败/超时 → 维持 rules 的 unknown（下游按全量保底，绝不因 jev 失败而不能说话）。
+      if (toolGateVerdict.need === 'unknown' && (toolGateMode === 'jev' || toolGateMode === 'jev2')) {
+        const role = toolGateMode === 'jev2' ? 'skillRouteGate' : 'toolNeedGate';
         try {
-          const jev = await jevGate('toolNeedGate', gateText.slice(0, 160));
+          const jev = await jevGate(role, gateText.slice(0, 160));
           if (jev && !jev.error && !jev.abstain) {
-            toolGateVerdict = { need: jev.on ? 'all' : 'none', cats: [], reason: `jev:${jev.label}` };
+            toolGateVerdict = toolGateMode === 'jev2'
+              ? skillRouteVerdict(jev)
+              : { need: jev.on ? 'all' : 'none', cats: [], reason: `jev:${jev.label}` };
           }
         } catch { /* Jev 挂了按 rules 行为（unknown→全量保底） */ }
       }
