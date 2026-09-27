@@ -8741,7 +8741,8 @@ function renderOnebotSection(c) {
   `, '', { id: 'settings-onebot' });
 }
 
-function bindSettingsEvents(c) {
+// ══ bindSettingsEvents 子函数（P1-b 拆分 · 纯移动）：工具栏自定义 + B 站一键登录（设置·API 区头部） ══
+function bindToolbarBiliSettings(c) {
   // 顶部工具栏自定义列表（桌面端 → 界面）
   if ($('#tb-nav-list') || $('#tb-top-list')) bindToolbarCfgSection();
 
@@ -8786,6 +8787,10 @@ function bindSettingsEvents(c) {
       setBiliHint(`清空失败：${e.message}`);
     }
   });
+}
+
+// ══ bindSettingsEvents 子函数（P1-b 拆分 · 纯移动）：本地 Jev 起停/试判 ══
+function bindJevSettings(c) {
 
   // 本地 Jev：起停 / 试判
   const jevOut = $('#cfg-jev-probe-out');
@@ -8933,6 +8938,10 @@ function bindSettingsEvents(c) {
     if (manage) manage.style.display = v.startsWith('custom:') ? '' : 'none';
   });
 
+}
+
+// ══ bindSettingsEvents 子函数（P1-b 拆分 · 纯移动）：自定义搜索服务：添加/测试/删除 ══
+function bindSearchCustomSettings(c) {
   // ── 自定义搜索服务：添加 / 测试 / 删除 ──
   $('#add-search-provider-btn')?.addEventListener('click', async () => {
     const hint = $('#add-search-provider-hint');
@@ -9004,6 +9013,10 @@ function bindSettingsEvents(c) {
     }
   });
 
+}
+
+// ══ bindSettingsEvents 子函数（P1-b 拆分 · 纯移动）：响应档位滑条即时反馈 ══
+function bindStoreTierSliderSettings(c) {
   // ── 响应档位滑条：拖动时即时反馈（档位 + 概率 + 参数高亮）──
   // ⚠️ 档位的唯一真相是滑条的 value（DOM 实时值），不用全局变量记录 ——
   //   曾经用过 window.__ctxTier，结果每次重渲染重新绑定事件时被"未保存的旧配置"
@@ -9074,9 +9087,17 @@ function bindSettingsEvents(c) {
     panel.dataset.seeded = '1';
   };
 
+}
+
+// ══ bindSettingsEvents 子函数（P1-b 拆分 · 纯移动）：私聊单独设置开关 ══
+function bindStorePrivateToggleSettings(c) {
   // ── 私聊单独设置开关：勾选后展开私聊那一套控件 ──
   // 首次开启时以当前群聊设置为起点（面板 data-seeded 标记过来自已保存配置的开启状态，
   // 所以"改过私聊参数 → 关掉 → 再打开"不会把用户调好的值冲掉）。
+}
+
+// ══ bindSettingsEvents 子函数（P1-b 拆分 · 纯移动）：浏览锁定：粘贴网址提取站点 ══
+function bindBrowseLockSettings(c) {
   // ── 浏览锁定：粘贴网址 → 提取站点加入列表 ──
   const browseAddBtn = $('#cfg-browseadd');  if (browseAddBtn) {
     const addDomain = () => {
@@ -9100,6 +9121,10 @@ function bindSettingsEvents(c) {
     });
   }
 
+}
+
+// ══ bindSettingsEvents 子函数（P1-b 拆分 · 纯移动）：表情批量补备注 ══
+function bindMemeNoteSettings(c) {
   // ── 表情批量补备注 ──
   const annotateBtn = $('#sticker-annotate-btn');
   if (annotateBtn) {
@@ -9128,6 +9153,10 @@ function bindSettingsEvents(c) {
     refreshAnnotateState();
   }
 
+}
+
+// ══ bindSettingsEvents 子函数（P1-b 拆分 · 纯移动）：站内搜索地址实时预览 ══
+function bindSearchUrlPreviewSettings(c) {
   // ── 站内搜索地址：实时显示"搜某个词时会抓哪个 URL" ──
   const siteSearchInput = $('#cfg-browsesearchurl');
   if (siteSearchInput) {
@@ -9160,6 +9189,10 @@ function bindSettingsEvents(c) {
     apply();
   }
 
+}
+
+// ══ bindSettingsEvents 子函数（P1-b 拆分 · 纯移动）：各群/好友单独设置开关 ══
+function bindStorePerChatSettings(c) {
   // ── 各群/好友单独设置开关（每个会话一个 checkbox + 一套面板）──
   document.querySelectorAll('input[data-perchat]').forEach((box) => {
     const key = box.dataset.perchat;
@@ -9176,6 +9209,10 @@ function bindSettingsEvents(c) {
     apply();
   });
 
+}
+
+// ══ bindSettingsEvents 子函数（P1-b 拆分 · 纯移动）：主题选择器（暗/亮/系统/？） ══
+function bindThemePickerSettings(c) {
   // ── 主题选择器（设置页「界面」区）：只有暗/亮/系统/？，无自定义格 ──
   const themePicker = $('#theme-picker');
   if (themePicker) {
@@ -9193,6 +9230,10 @@ function bindSettingsEvents(c) {
     });
   }
 
+}
+
+// ══ bindSettingsEvents 子函数（P1-b 拆分 · 纯移动）：界面亮度拖动即时预览 ══
+function bindBrightnessSettings(c) {
   // ── 界面亮度：拖动即时预览；写 localStorage，保存设置时写入 ui.brightness ──
   const brightSlider = $('#cfg-brightness');
   if (brightSlider) {
@@ -9212,6 +9253,10 @@ function bindSettingsEvents(c) {
     api('/api/config', { method: 'POST', body: JSON.stringify({ ui: { brightness: 100 } }) })
       .catch(() => { /* 本地仍已生效 */ });
   });
+}
+
+// ══ bindSettingsEvents 子函数（P1-b 拆分 · 纯移动）：界面缩放拖动即时生效 ══
+function bindUiScaleSettings(c) {
   // ── 界面缩放：拖动即时生效；卡牌等 px 控件随 zoom 一起放大 ──
   const scaleSlider = $('#cfg-uiscale');
   if (scaleSlider) {
@@ -9247,6 +9292,10 @@ function bindSettingsEvents(c) {
       .catch(() => { /* 本地已生效 */ });
   });
 
+}
+
+// ══ bindSettingsEvents 子函数（P1-b 拆分 · 纯移动）：自定义主题：开关/预设/导入/色板 ══
+function bindCustomThemeSettings(c) {
   // ── 自定义主题：开关 + 机甲预设 / 导入 + 手动色板 ──
   $('#cfg-custom-toggle')?.addEventListener('click', () => toggleCustomTheme());
   $('#cfg-custom-edit')?.addEventListener('click', () => {
@@ -9458,6 +9507,10 @@ function bindSettingsEvents(c) {
     };
   }
 
+}
+
+// ══ bindSettingsEvents 子函数（P1-b 拆分 · 纯移动）：成本核算价格卡片 ══
+function bindCostCardsSettings(c) {
   // ── 成本核算：价格卡片随模型/开关变化 ──
   const useOfficialBox = $('#cfg-useofficialprice');
   if (useOfficialBox) useOfficialBox.addEventListener('change', () => {
@@ -9473,6 +9526,10 @@ function bindSettingsEvents(c) {
   // 批量自定义价格编辑
   $('#batch-price-btn')?.addEventListener('click', () => openBatchPriceModal());
 
+}
+
+// ══ bindSettingsEvents 子函数（P1-b 拆分 · 纯移动）：远程价格表状态与拉取 ══
+function bindPriceRemoteSettings(c) {
   // ── 远程价格表：状态展示 + 立即拉取 ──
   renderPriceFeedStatus();
   $('#price-feed-refresh-btn')?.addEventListener('click', async () => {
@@ -9490,6 +9547,10 @@ function bindSettingsEvents(c) {
     }
   });
 
+}
+
+// ══ bindSettingsEvents 子函数（P1-b 拆分 · 纯移动）：记忆整理区块 ══
+function bindMemorySettings(c) {
   // ── 记忆整理区块事件 ──
   const memUseChat = $('#cfg-mem-usechat');
   if (memUseChat) memUseChat.addEventListener('change', () => {
@@ -9499,6 +9560,10 @@ function bindSettingsEvents(c) {
   const memModelPick = $('#cfg-mem-model-pick');
   if (memModelPick) memModelPick.addEventListener('click', () => openMemoryModelPicker());
 
+}
+
+// ══ bindSettingsEvents 子函数（P1-b 拆分 · 纯移动）：模型 API 区块 ══
+function bindApiModelSettings(c) {
   // ── 模型 API 区块事件 ──
   // 密码框显示/隐藏切换（点击按钮切换对应输入框的 type）
   // 已保存 Key 的输入框初始值统一为掩码 "******"；
@@ -9842,6 +9907,10 @@ function bindSettingsEvents(c) {
   }
   applyShowVision();
 
+}
+
+// ══ bindSettingsEvents 子函数（P1-b 拆分 · 纯移动）：人设区块 ══
+function bindPersonaSettings(c) {
   // ── 人设区块事件 ──
   const personaPick = $('#cfg-persona-pick');
   function currentPersonaId() {
@@ -9918,6 +9987,10 @@ function bindSettingsEvents(c) {
   });
   syncPersonaButtons();
 
+}
+
+// ══ bindSettingsEvents 子函数（P1-b 拆分 · 纯移动）：一键清洗消息记录（人设区） ══
+function bindPurgeHistorySettings(c) {
   // ── 一键清洗消息记录（人设区）──
   // 用户反馈两件事一起解决：① 换人设后还被旧聊天记录拽着走；② 手动删了
   // data/messages / data/sessions 里的文件，"记录还在"（进程内存里那份没跟着掉）。
@@ -9961,12 +10034,20 @@ function bindSettingsEvents(c) {
     el.style.color = isErr ? 'var(--red)' : '';
   }
 
+}
+
+// ══ bindSettingsEvents 子函数（P1-b 拆分 · 纯移动）：白名单区块 ══
+function bindAllowSettings(c) {
   // ── 白名单区块事件 ──
   const pickGroupsBtn = $('#pick-groups-btn');
   if (pickGroupsBtn) pickGroupsBtn.addEventListener('click', () => openWhitelistPicker('groups'));
   const pickFriendsBtn = $('#pick-friends-btn');
   if (pickFriendsBtn) pickFriendsBtn.addEventListener('click', () => openWhitelistPicker('friends'));
 
+}
+
+// ══ bindSettingsEvents 子函数（P1-b 拆分 · 纯移动）：群成员备注（桌面端区块） ══
+function bindMemberNotesSettings(c) {
   // ── 群成员备注（桌面端区块） ──
   function renderMemberNoteList() {
     const notes = state.config?.memberNotes || {};
@@ -10012,6 +10093,10 @@ function bindSettingsEvents(c) {
     }
   });
   renderMemberNoteList();
+}
+
+// ══ bindSettingsEvents 子函数（P1-b 拆分 · 纯移动）：OneBot 区块 ══
+function bindOnebotSettings(c) {
 
   // ── OneBot 区块事件 ──
   const openSnowlumaBtn = $('#open-snowluma-btn');
@@ -10020,6 +10105,32 @@ function bindSettingsEvents(c) {
     try { await api('/api/snowluma/open-folder', { method: 'POST', body: '{}' }); }
     catch (e) { $('#snowluma-hint').textContent = `失败：${e.message}`; }
   });
+}
+
+function bindSettingsEvents(c) {
+  // 2026-09-27 P1-b：原 1278 行巨函数按区块纯移出为下列子函数（同文件、同顺序、行为零变化）。
+  bindToolbarBiliSettings(c);
+  bindJevSettings(c);
+  bindSearchCustomSettings(c);
+  bindStoreTierSliderSettings(c);
+  bindStorePrivateToggleSettings(c);
+  bindBrowseLockSettings(c);
+  bindMemeNoteSettings(c);
+  bindSearchUrlPreviewSettings(c);
+  bindStorePerChatSettings(c);
+  bindThemePickerSettings(c);
+  bindBrightnessSettings(c);
+  bindUiScaleSettings(c);
+  bindCustomThemeSettings(c);
+  bindCostCardsSettings(c);
+  bindPriceRemoteSettings(c);
+  bindMemorySettings(c);
+  bindApiModelSettings(c);
+  bindPersonaSettings(c);
+  bindPurgeHistorySettings(c);
+  bindAllowSettings(c);
+  bindMemberNotesSettings(c);
+  bindOnebotSettings(c);
 }
 
 // ── 模型选择/添加/删除 模态框 ──
