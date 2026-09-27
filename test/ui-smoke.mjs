@@ -166,6 +166,11 @@ test('主题：7 张预设逐张应用（配色/形态/customThemeId 全对上�
     'warm-room': 'warmroom',
     'classic-purple': null
   };
+  // 拆分后样式表加载守卫（P1-a）：形态签名变量只有对应 CSS 文件生效才会出现
+  const FORM_SIGN_VAR = {
+    sujian: '--sj-serif',
+    deepspace: '--ds-mono'
+  };
   for (const th of themes) {
     const chip = page.locator(`#theme-presets [data-theme-id="${th.id}"]`);
     await chip.scrollIntoViewIfNeeded();
@@ -186,6 +191,11 @@ test('主题：7 张预设逐张应用（配色/形态/customThemeId 全对上�
     assert.equal(got.form, FORM_OF[th.id] || '', `${th.id}：形态应=${FORM_OF[th.id] ?? '无'}，实际=${got.form}`);
     assert.equal(got.bg, th.colors.bg, `${th.id}：--bg 应=${th.colors.bg}，实际=${got.bg}`);
     if (th.id === 'mech-orange') assert.equal(got.mechFx, 'on', '机甲默认应带特效');
+    const signVar = FORM_SIGN_VAR[FORM_OF[th.id]];
+    if (signVar) {
+      const val = await page.evaluate((v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim(), signVar);
+      assert.ok(val.length > 0, `${th.id}：形态签名变量 ${signVar} 应非空（ui-forms.css 生效证明），实际「${val}」`);
+    }
   }
 });
 
@@ -200,13 +210,21 @@ test('主题：循环按钮 dark→light→system→?→dark', async () => {
   const dialogHandler = (d) => d.accept().catch(() => {});
   page.on('dialog', dialogHandler);
   const seq = [];
+  let chaosVar = '';
   for (let i = 0; i < 4; i++) {
     await page.locator('#theme-btn').click();
     await page.waitForTimeout(150);
-    seq.push(await page.evaluate(() => getThemePref()));
+    const pref = await page.evaluate(() => getThemePref());
+    seq.push(pref);
+    if (pref === '?') {
+      chaosVar = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--ease-chaos').trim());
+    }
   }
   page.off('dialog', dialogHandler);
   assert.deepEqual(seq, ['light', 'system', '?', 'dark'], `循环顺序错误：${seq.join('→')}`);
+  // chaos.css 生效证明：「？」主题专属变量只有该文件加载才会出现
+  // （在「？」激活的那一轮顺手读取）
+  assert.ok(chaosVar && chaosVar.length > 0, `「？」主题应定义 --ease-chaos（chaos.css 生效证明），实际「${chaosVar}」`);
 });
 
 // ── 5. 设置页读写（自动保存全链路）───────────────────────────────────

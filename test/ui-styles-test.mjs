@@ -62,8 +62,10 @@ test('app.js：三个 UI_IDS 集合 + data-ui-style 三分支 + 预设 fallback 
 });
 
 // ── 4. CSS 形态段 ────────────────────────────────────────────────────────
-test('style.css：三段形态 + 各自签名特征（衬线/等宽扫描线/角括号/药丸渐变）', () => {
-  const css = read('ui/style.css');
+// 2026-09-27 P1-a 拆分：形态段整体移入 ui/ui-forms.css（纯移动，规则零改动），
+// 「？」彩蛋移入 ui/chaos.css；本测试随文件搬移改读取路径，校验意图不变。
+test('ui-forms.css：三段形态 + 各自签名特征（衬线/等宽扫描线/角括号/药丸渐变）', () => {
+  const css = read('ui/ui-forms.css');
   for (const style of ['sujian', 'deepspace', 'warmroom']) {
     assert.ok(css.includes(`[data-ui-style='${style}']`), `缺 ${style} 形态段`);
   }
@@ -82,6 +84,12 @@ test('style.css：三段形态 + 各自签名特征（衬线/等宽扫描线/角
 test('ui/index.html 引用 style.css 与 app.js（Electron/Web 同源生效）', () => {
   const html = read('ui/index.html');
   assert.ok(/style\.css/.test(html), 'index.html 应引用 style.css');
+  // P1-a 拆分后的两个新表单：顺序必须保持 style → chaos → forms（级联顺序已论证零冲突）
+  assert.ok(/chaos\.css/.test(html), 'index.html 应引用 chaos.css');
+  assert.ok(/ui-forms\.css/.test(html), 'index.html 应引用 ui-forms.css');
+  const linkOrder = ['style.css', 'chaos.css', 'ui-forms.css']
+    .map((f) => html.indexOf(f)).reduce((a, b) => a >= 0 && b > a ? b : -1, 0);
+  assert.ok(linkOrder > 0, '三个样式表的引用顺序应为 style → chaos → ui-forms');
   assert.ok(/app\.js/.test(html), 'index.html 应引用 app.js');
   const main = read('electron/main.js');
   assert.ok(main.includes('ui') || main.includes('index.html'), 'Electron 应加载 ui/ 目录');
