@@ -6,12 +6,12 @@
   "type": "module",
   "main": "electron/main.js",
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.12.0"
   },
   "scripts": {
-    "start": "electron .",
+    "start": "electron --disable-features=CalculateNativeWinOcclusion,HighTouchLatency .",
     "server": "node src/server.js",
-    "test": "node --test test/decision-policy-test.mjs test/run-context-test.mjs test/memory-evidence-test.mjs test/memory-time-test.mjs test/task-ledger-test.mjs test/tool-scope-test.mjs test/message-recovery-test.mjs test/local-jev-frequency-test.mjs test/reply-target-test.mjs test/desktop-log-noise-test.mjs test/community-plugin-test.mjs test/forward-message-test.mjs test/logger-test.mjs test/sticker-display-test.mjs test/stability-fixes-test.mjs test/skill-tool-compression-test.mjs test/paths-test.mjs test/event-bus-test.mjs test/module-registry-test.mjs test/cross-platform-test.mjs test/tool-gate-test.mjs test/channel-test.mjs test/voice-test.mjs test/persona-files-test.mjs test/ui-styles-test.mjs test/persona-humanize-test.mjs test/session-usage-test.mjs test/persona-import-test.mjs test/api-news-cfg-test.mjs test/skill-gate-test.mjs",
+    "test": "node --test test/decision-policy-test.mjs test/run-context-test.mjs test/memory-evidence-test.mjs test/memory-time-test.mjs test/task-ledger-test.mjs test/tool-scope-test.mjs test/message-recovery-test.mjs test/local-jev-frequency-test.mjs test/reply-target-test.mjs test/desktop-log-noise-test.mjs test/community-plugin-test.mjs test/forward-message-test.mjs test/logger-test.mjs test/sticker-display-test.mjs test/stability-fixes-test.mjs test/skill-tool-compression-test.mjs test/paths-test.mjs test/event-bus-test.mjs test/module-registry-test.mjs test/cross-platform-test.mjs test/tool-gate-test.mjs test/channel-test.mjs test/voice-test.mjs test/persona-files-test.mjs test/ui-styles-test.mjs test/persona-humanize-test.mjs test/session-usage-test.mjs test/persona-import-test.mjs test/api-news-cfg-test.mjs test/skill-gate-test.mjs test/electron-upgrade-test.mjs",
     "check": "node --check src/decision-policy.js && node --check src/run-context.js && node --check src/memory-evidence.js && node --check src/task-ledger.js && node --check src/local-jev.js && node --check src/salvage.js && node --check src/memory.js && node --check src/tools.js && node --check src/orchestrator.js && node --check src/onebot.js && node --check src/logger.js && node --check src/app.js && node --check src/server.js && node --check src/prompt.js && node --check src/prompt-cleaned.js && node --check src/plugin-loader.js && node --check src/config.js && node --check src/personas.js && node --check src/local-reply-policy.js && node --check src/llm.js && node --check src/tool-role-sync.js && node --check src/skill-bridge.js && node --check plugins/health-system/index.js && node --check electron/main.js && node --check ui/app.js && node --check src/paths.js && node --check src/event-bus.js && node --check src/module-registry.js && node --check src/module-loader.js && node --check modules/crazy-thursday/index.js && node --check modules/api-news/index.js && node --check modules/themes/index.js && node --check src/tool-gate.js && node --check modules/voice/index.js && node --check modules/voice/stt.js && node --check modules/voice/tts.js && node --check modules/voice/audio.js && node --check src/persona-files.js",
     "start:cli": "node scripts/start.mjs",
     "start:headless": "node scripts/start.mjs --headless",
@@ -24,7 +24,7 @@
     "ws": "^8.18.0"
   },
   "devDependencies": {
-    "electron": "^33.2.0"
+    "electron": "^44.4.5"
   },
   "license": "MIT",
   "author": "Kondius",

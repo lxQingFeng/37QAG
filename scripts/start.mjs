@@ -49,8 +49,8 @@ function log(...a) {
 }
 
 function haveElectron() {
-  // 开发仓库：devDependencies 里装了 electron；发行包：node_modules/electron 存在
-  try { return fs.existsSync(path.join(ROOT, 'node_modules', 'electron', 'dist')); } catch { return false; }
+  // Electron 42+ 安装 npm 包时不再自动下载 dist；先认 CLI 包，首次启动时由 electron 自行按需下载二进制。
+  try { return fs.existsSync(path.join(ROOT, 'node_modules', 'electron', 'cli.js')); } catch { return false; }
 }
 
 function haveDisplay() {

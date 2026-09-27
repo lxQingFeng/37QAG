@@ -2,9 +2,9 @@
 
 > 面向 QQ 群聊的本地优先 Agent：将 OneBot 接入、OpenAI 兼容模型、Jev 小决策、来源化记忆、任务闭环、技能与社区插件整合在一个 Electron 桌面应用中。
 
-[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D20-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
-[![Electron](https://img.shields.io/badge/Electron-33.x-47848F?logo=electron&logoColor=white)](https://www.electronjs.org/)
-[![Tests](https://img.shields.io/badge/tests-188%20passed-brightgreen)](#检查与测试)
+[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D22.12-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
+[![Electron](https://img.shields.io/badge/Electron-44.x-47848F?logo=electron&logoColor=white)](https://www.electronjs.org/)
+[![Tests](https://img.shields.io/badge/tests-200%20passed-brightgreen)](#检查与测试)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 37QAG 以“QQ-Agent-整合版-20260922”为稳定运行基线，整合 Jev 决策树、来源化记忆和任务闭环，并参考“QQ-Agent 0.4 preview”的长期扩展设计。当前版本为 **37QAG 0.6.0**。
@@ -102,9 +102,9 @@
 | 层级 | 当前技术 | 版本 / 说明 |
 | --- | --- | --- |
 | 编程语言 | JavaScript | ECMAScript Modules（`"type": "module"`） |
-| 运行时 | Node.js | `>=20`；当前开发环境使用 Node.js 24.20.0 |
+| 运行时 | Node.js | `>=22.12.0`；当前开发环境使用 Node.js 24.20.0 |
 | 包管理 | npm | 当前开发环境使用 npm 10.5.0 |
-| 桌面壳 | Electron | `^33.2.0`；当前安装版本 33.4.11 |
+| 桌面壳 | Electron | `^44.4.5`；当前安装版本 44.4.5 |
 | 控制台 UI | HTML / CSS / 原生 JavaScript | 无 React、Vue 或前端打包器 |
 | 桌面通信 | Electron `ipcMain` / `preload` | 使用 Context Bridge 限制渲染进程能力 |
 | HTTP 客户端 | `undici` | `^6.28.0`；当前安装版本 6.28.0 |
@@ -131,7 +131,7 @@ dependencies
   ws        ^8.18.0
 
 devDependencies
-  electron  ^33.2.0
+  electron  ^44.4.5
 ```
 
 生成并提交了 `package-lock.json`，用于保持依赖解析结果可复现。
@@ -139,8 +139,8 @@ devDependencies
 ### 依赖安全状态
 
 - `npm audit --omit=dev`：生产依赖 0 个已知漏洞。
-- 完整 `npm audit`：当前 Electron 33.x 开发依赖链报告 2 个高危项（Electron 与 `extract-zip`）。
-- 安全修复要求升级到 Electron 44.4.5，属于跨多个主版本的变更。为避免未经回归测试就改变桌面运行基线，本次发布保留当前 Electron 33.x，并将升级列为后续兼容任务。
+- 完整 `npm audit`：0 个已知漏洞；Electron 已升级到 44.4.5，并消除旧 Electron 33.x 开发依赖链中的 2 个高危项。
+- Electron 44 要求安装环境使用 Node.js 22.12.0 或更高版本。
 
 ---
 
@@ -187,7 +187,7 @@ flowchart TD
 ### 基础要求
 
 - Windows 10 / 11 x64（当前启动脚本和本地运行链路主要面向 Windows）。
-- Node.js 20 或更高版本。
+- Node.js 22.12.0 或更高版本（Electron 44 安装链的最低要求）。
 - npm 9 或更高版本。
 - 可访问 OpenAI 兼容模型 API。
 - 一个 OneBot v11 兼容协议端；推荐 SnowLuma v1.14.19 或更高版本。
@@ -217,7 +217,9 @@ cd 37QAG
 npm install
 ```
 
-要求 Node.js ≥ 20。服务器（无桌面环境）可只装生产依赖后使用 headless 模式。
+要求 Node.js ≥ 22.12.0。服务器（无桌面环境）可只装生产依赖后使用 headless 模式。
+
+Electron 42+ 的 npm 安装阶段可能只写入命令入口，首次启动桌面端时再自动下载 Electron 二进制。若希望安装依赖时预先下载，可执行 `npm exec install-electron`。
 
 ### 3. 启动（Windows/Linux 双端统一入口）
 
@@ -366,7 +368,7 @@ npm run check
 npm test
 ```
 
-当前测试套件包含 **188 项测试**（30 个测试文件，白名单注册于 `package.json` 的 `scripts.test`，新增测试文件需同步登记），另有 **UI 冒烟 7 项**（`npm run test:ui`，无头浏览器加载 / 页签 / 主题 / 形态 / 设置读写 / 主题导入），覆盖：
+当前测试套件包含 **193 项测试**（31 个测试文件，白名单注册于 `package.json` 的 `scripts.test`，新增测试文件需同步登记），另有 **UI 冒烟 7 项**（`npm run test:ui`，无头浏览器加载 / 页签 / 主题 / 形态 / 设置读写 / 主题导入），覆盖：
 
 - 参与路线与 Jev 否决边界；
 - RunContext 预算、截止时间和取消；
@@ -383,7 +385,8 @@ npm test
 - health-system 工具包装与状态迁移；
 - skill 工具压缩；
 - 技能门控路由（skill.json `gateCategory` 归一化、提示词段与工具同源注入、`jev2` 五分类判定与降级保底）；
-- 设置补齐键默认值一致性、api-news 配置读取与语音 tokens 透传回归。
+- 设置补齐键默认值一致性、api-news 配置读取与语音 tokens 透传回归；
+- Electron 44 升级兼容（版本与锁文件、Node 引擎、按需下载检测、`console-message` 双签名、Chromium feature 参数大小写）。
 
 测试只使用临时目录，不应写入真实账号配置或真实聊天数据。
 
@@ -562,11 +565,14 @@ models/mmproj-Qwen3.5-0.8B-BF16.gguf
 
 ### `npm start` 找不到 Electron
 
+先确认 Node.js 版本不低于 22.12.0，然后执行：
+
 ```powershell
 npm install
+npm exec install-electron   # 可选：预先下载 Electron 二进制
 ```
 
-确认 `node_modules/electron` 已安装，然后再启动。
+若跳过预下载命令，Electron 42+ 会在首次启动桌面端时自动下载二进制。确认 `node_modules/electron` 已安装后再启动；下载失败时检查网络或 npm/Electron 镜像配置。
 
 ### 首次启动没有配置文件
 

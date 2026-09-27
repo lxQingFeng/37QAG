@@ -26,7 +26,8 @@ if (FORCE_SOFT) {
   app.commandLine.appendSwitch('disable-software-rasterizer');
   app.commandLine.appendSwitch('enable-unsafe-swiftshader');
 }
-app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion,HighTouchLatency');
+// Electron 36+ 会把 app.commandLine 的参数值转小写，而 Chromium feature 名区分大小写。
+// CalculateNativeWinOcclusion/HighTouchLatency 必须由 package.json 与 launch.ps1 的真实命令行传入。
 app.commandLine.appendSwitch('force-color-profile', 'srgb');
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -622,6 +623,18 @@ ipcMain.handle('ui:get-zoom', () => {
   try { return mainWindow.webContents.getZoomFactor() || 1; } catch { return 1; }
 });
 
+function logRendererConsole(event, legacyLevel, legacyMessage, legacyLine, legacySourceId) {
+  // Electron 44 推荐读取事件对象；旧位置参数仅作兼容回退。
+  const details = event && typeof event.message === 'string'
+    ? event
+    : { level: legacyLevel, message: legacyMessage, lineNumber: legacyLine, sourceId: legacySourceId };
+  const important = details.level === 'warning' || details.level === 'error'
+    || (typeof details.level === 'number' && details.level >= 2);
+  if (important) {
+    console.log(`[renderer] ${details.message} (${details.sourceId}:${details.lineNumber})`);
+  }
+}
+
 function createWindow(port) {
   // 本实例首页；账号胶囊切到号B后，加载失败不要无脑拽回号A
   const homeUrl = `http://127.0.0.1:${port}/`;
@@ -721,9 +734,7 @@ function createWindow(port) {
   mainWindow.webContents.on('unresponsive', () => {
     crashLog('渲染进程无响应（可能 OOM 或主线程死循环）', new Error('unresponsive'));
   });
-  mainWindow.webContents.on('console-message', (_e, level, message, line, sourceId) => {
-    if (level >= 2) console.log(`[renderer] ${message} (${sourceId}:${line})`);
-  });
+  mainWindow.webContents.on('console-message', logRendererConsole);
   mainWindow.loadURL(homeUrl).catch((error) => console.error('[window] loadURL 失败:', error));
   // 关窗默认缩到托盘（真正退出走托盘菜单），符合"常驻机器人"的使用习惯
   mainWindow.on('close', (event) => {

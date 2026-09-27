@@ -97,7 +97,7 @@ function Start-Instance([string]$profile, [string]$dataDir, [string]$title) {
 
   $psi = New-Object System.Diagnostics.ProcessStartInfo
   $psi.FileName = $exe
-  $psi.Arguments = '"' + (Join-Path $root '.') + '"'
+  $psi.Arguments = '--disable-features=CalculateNativeWinOcclusion,HighTouchLatency "' + (Join-Path $root '.') + '"'
   $psi.WorkingDirectory = $root
   $psi.UseShellExecute = $false
 
@@ -127,7 +127,7 @@ if ($Mode -eq 'dual') {
   $env:QQ_AGENT_FORCE_PEER = '1'
   $psi = New-Object System.Diagnostics.ProcessStartInfo
   $psi.FileName = $exe
-  $psi.Arguments = '"' + (Join-Path $root '.') + '"'
+  $psi.Arguments = '--disable-features=CalculateNativeWinOcclusion,HighTouchLatency "' + (Join-Path $root '.') + '"'
   $psi.WorkingDirectory = $root
   $psi.UseShellExecute = $false
   Log ("start account A (peer forced, port $portA)")
