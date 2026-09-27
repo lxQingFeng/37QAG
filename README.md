@@ -4,10 +4,10 @@
 
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D20-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
 [![Electron](https://img.shields.io/badge/Electron-33.x-47848F?logo=electron&logoColor=white)](https://www.electronjs.org/)
-[![Tests](https://img.shields.io/badge/tests-157%20passed-brightgreen)](#检查与测试)
+[![Tests](https://img.shields.io/badge/tests-174%20passed-brightgreen)](#检查与测试)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-37QAG 以“QQ-Agent-整合版-20260922”为稳定运行基线，整合 Jev 决策树、来源化记忆和任务闭环，并参考“QQ-Agent 0.4 preview”的长期扩展设计。当前版本为 **37QAG 0.5.0**。
+37QAG 以“QQ-Agent-整合版-20260922”为稳定运行基线，整合 Jev 决策树、来源化记忆和任务闭环，并参考“QQ-Agent 0.4 preview”的长期扩展设计。当前版本为 **37QAG 0.6.0**。
 
 ---
 
@@ -366,7 +366,7 @@ npm run check
 npm test
 ```
 
-当前测试套件包含 **157 项测试**（24 个测试文件，白名单注册于 `package.json` 的 `scripts.test`，新增测试文件需同步登记），覆盖：
+当前测试套件包含 **174 项测试**（29 个测试文件，白名单注册于 `package.json` 的 `scripts.test`，新增测试文件需同步登记），另有 **UI 冒烟 7 项**（`npm run test:ui`，无头浏览器加载 / 页签 / 主题 / 形态 / 设置读写 / 主题导入），覆盖：
 
 - 参与路线与 Jev 否决边界；
 - RunContext 预算、截止时间和取消；
@@ -381,7 +381,8 @@ npm test
 - 人设、提示词压缩和角色工具同步；
 - 表情显示与私聊图片行为；
 - health-system 工具包装与状态迁移；
-- skill 工具压缩。
+- skill 工具压缩；
+- 设置补齐键默认值一致性、api-news 配置读取与语音 tokens 透传回归。
 
 测试只使用临时目录，不应写入真实账号配置或真实聊天数据。
 
@@ -643,7 +644,7 @@ server.port
 
 ## 版本与许可证
 
-- 当前版本：`0.5.0`
+- 当前版本：`0.6.0`
 - 版本定义：[`package.json`](package.json)
 - 仓库地址：[github.com/lxQingFeng/37QAG](https://github.com/lxQingFeng/37QAG)
 - 问题反馈：[GitHub Issues](https://github.com/lxQingFeng/37QAG/issues)
