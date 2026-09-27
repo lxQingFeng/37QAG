@@ -5,7 +5,7 @@
   "version": "1.0.0",
   "description": "抓「免费额度 / 限时免费 / 长期免费」类 API 信息，LLM 压缩成人话 + 附链接，每天 04:00 自动刷新。存 data/api-news.json。",
   "entry": "index.js",
-  "configKeys": ["apiNews"],
+  "configKeys": ["webSearch.apiNews"],
   "author": "37QAG core",
   "license": "MIT"
 }

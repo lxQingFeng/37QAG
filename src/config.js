@@ -109,6 +109,10 @@ export const DEFAULT_CONFIG = {
     model: '',                              // UI 里选择/填写
     provider: '',                           // 当前模型所属提供商（多提供商目录的选中项）
     vision: true,                           // 模型是否支持图片输入（关掉则移除看图工具）
+    // 自动看图（默认开）：触发消息里自带的图，直接下成 data URL 挂进本轮 user 消息，
+    // 不再要求模型主动调 get_message_images（小模型经常想不起来）。
+    // 设 false 退回旧行为（只在模型显式调工具时才看到图）。主动插话轮不看图。
+    autoVision: true,
     // 认图闸：自动附图之前先判「这张图跟当前话题关系大不大」，无关就不附图、并明说别认图 ——
     // 否则模型看到图就以为在说自己，把话题扯到认图上（2026-09-21 管理员反馈）。
     //   档位（20 例留出集盲测）：
@@ -218,6 +222,10 @@ export const DEFAULT_CONFIG = {
     // 例：['send_message','send_image','search_images','web_search','web_fetch','list_stickers','send_sticker','finish']
     // 留空 = 全部工具都给。
     tools: [],
+    // send_message 的 messages 参数只给「数组」一种写法（默认 false = 数组/字符串两种都教）。
+    // 实测本地小模型经常生成 {"messages":"[\"第一条\"]"}（把数组塞进字符串），
+    // 两种可选写法等于多一个出错机会。后台仍兼容字符串，只是不再告诉它。
+    sendMessagesArrayOnly: false,
     // 单次运行工具动作安全上限：避免小模型重复/发散拖慢或刷屏。
     toolLimits: {
       perRound: 8,
@@ -233,6 +241,10 @@ export const DEFAULT_CONFIG = {
     // "本轮无工具调用 + 正文像一条消息 + 本次运行还没发过话"的情况下补一轮提醒；
     // 只提醒一次，不会无限循环。想完全关掉就设为 false。
     nudgeTextOnly: true,
+    // 定向@的追问提醒（默认开）：有人 @ 机器人且内容像提问、模型却只输出正文没调
+    // send_message 时，补一轮「必须回复」的硬提醒（与 nudgeTextOnly 同一次数限制）。
+    // 设 false 关掉这条定向提醒（nudgeTextOnly 的通用提醒不受影响）。
+    pointedNudge: true,
     // 协议提醒（默认开，2026-09-11 实测有效）：在用户提示词**最末尾**追加一句
     // "要发言就立刻调用 send_message，不打算说话就调用 finish"。
     // 实测号A（qwen3.7-flash）同一批真实会话 ×3：不加 22% 的运行整轮不调工具
@@ -242,6 +254,12 @@ export const DEFAULT_CONFIG = {
     // 号A（远程、能力够）开着；号B（本地/弱模型）建议 false，避免瞎调/乱编。
     // maxSearchPerRun：单次运行内 memory_search/archive 合计最多几次（0=不限，不建议）
     conversationMemory: { enabled: true, maxSearchPerRun: 5 },
+    // 热梗预查（默认开）：触发消息像在问热梗时，先用 web_search 预查一次再回答，
+    // 避免凭旧印象硬猜"一本正经说错"。设 false 关闭预查。
+    hotMemeAutoPrefetch: true,
+    // 要图提醒（默认开）：触发词/本地 Jev 判定对方在要图、而模型一轮都没搜图时，
+    // 在提示词最末尾点一句硬要求。设 false 关闭。
+    imageRequestReminder: true,
     // 问旧事时：句式命中则注入硬要求，并本地预检索塞进提示词（仍不常驻每条消息）。
     memoryRecallReminder: true,
     memoryAutoPrefetch: true,
@@ -296,6 +314,9 @@ export const DEFAULT_CONFIG = {
     // ⚠️ 只在 textOnlyJudge=false 或裁判接口报错时才生效；盲发有泄漏内心独白的风险。
     textOnlyFallback: true,
     timeoutMs: 90000,
+    // 单次运行的总时限（毫秒，默认 2 分钟）：超时后不再发起新的工具轮，
+    // 已发出的消息不受影响。想跑长任务（大批量整理）就调大。
+    runDeadlineMs: 120000,
     // 成本核算（仅本地估算展示，不参与任何请求）
     priceInputPerM: 0,      // 输入单价（元 / 百万 token）—— 兜底默认值
     priceOutputPerM: 0,     // 输出单价
@@ -338,9 +359,10 @@ export const DEFAULT_CONFIG = {
       },
       local: {                      // 本地档：sherpa-onnx + SenseVoice ONNX（模型自备）
         engine: 'sherpa-onnx',      // 'sherpa-onnx' | 'whisper-cli'（兼容 speech-to-text 插件路线）
-        modelPath: '',              // 模型目录/文件（含 tokens.txt）；whisper-cli 时填 ggml
+        modelPath: '',              // 模型目录/文件（目录里要含 tokens.txt）；whisper-cli 时填 ggml
         cliPath: '',                // CLI 路径，留空 PATH 探测
-        language: 'zh'
+        language: 'zh',
+        tokens: ''                  // sherpa-onnx tokens.txt 路径；留空 = modelPath 指目录时自动取目录里的 tokens.txt
       },
       fallback: 'cloud-to-local'    // 云端失败回本地一次；'none' 不回退
     },
@@ -594,6 +616,12 @@ export const DEFAULT_CONFIG = {
     // web_fetch 每次返回的正文上限（字符）。中文 1 字符 ≈ 1 token，抓一页 2 万字
     // 就是一次 ¥0.01+ 的输入，比一次正常运行还贵——所以默认压到 8000。
     fetchMaxChars: 8000,
+    // 搜索结果补读正文时每条网页截取的长度（字符，下限 200）。
+    // 只对 Bing/自定义结果补读（原生搜索已带正文）。补读条数 autoReadPages 不在此设——
+    // 它的默认值随 provider 变化（原生 0 / 其它 1），保持未配置时的自适应语义。
+    autoReadChars: 600,
+    // 热梗预查（api.hotMemeAutoPrefetch）的超时（毫秒，1500~15000 钳制；超时直接跳过预查不阻塞回复）。
+    hotMemePrefetchTimeoutMs: 6000,
     // 外部知识源（MediaWiki）。模型用 external_lookup 查；实时新闻仍走 web_search。
     // sources 行格式：id | 显示名 | https://根地址
     wiki: {
@@ -668,6 +696,9 @@ export const DEFAULT_CONFIG = {
       // 额外 RSS（默认空；综合资讯源会带进大量开源项目，按需再加）
       feeds: []
     },
+    // web_search 的新闻头条源（默认空 = 用内置 RSS 列表）。每项 { name, url }。
+    // 5 分钟缓存；任一条失败不影响其它条。
+    newsFeeds: [],
     // B 站：只允许从指定收藏夹转发（AI 专用池）
     bilibiliCookie: '',
     // 收藏夹显示名：list_bili_fav 只认这个夹；空 = 不限制
@@ -814,8 +845,19 @@ export const DEFAULT_CONFIG = {
     maxPerHour: 500,
     // 拦下整段英文（无中文且 ≥3 个英文词）；允许夹在中文里的英文词
     blockPureEnglish: true,
+    // 拦下「我是AI/我只是程序」式的自我暴露声明（默认开）。
+    // 角色卡要求入戏，但小模型偶尔会把内心 OS 当正文发出去。
+    blockAiSelfClaim: true,
+    // 拦下残缺的 JSON/工具参数碎片（默认开）：模型把 {"messages": …} 这类
+    // 本该当参数的东西当正文发出来时丢弃并提示它重发。
+    blockJsonFragments: true,
     hardSplitAt: 4000,      // QQ 硬限制切分（0 = 不限制）
-    biliJsonCard: false     // B站视频 json 卡；true 时用 video 卡。仍「过期/升级后使用」就保持 false（只发封面+链接）
+    biliJsonCard: false,    // B站视频 json 卡；true 时用 video 卡。仍「过期/升级后使用」就保持 false（只发封面+链接）
+    // 发送前删掉词两边的【】「」[]方块装饰与句尾挂的方块（默认关）。
+    // 本地小模型学舌时爱挂这些；提示词里也会同步加一条硬要求。
+    tidyBrackets: false,
+    // 发送前剥掉 emoji（默认关）。
+    stripEmoji: false
   },
   // 疯狂星期四：每周四固定点直发文案（不走 LLM、不带人设）
   // groupIds 留空 = 不向任何群发送（不会回落到 allow.groups）
@@ -855,7 +897,15 @@ export const DEFAULT_CONFIG = {
     // 发表情包的积极程度（0=不鼓励 1=偶尔 2=较积极 3=很积极）。
     // 这是在提示词层面引导模型"更愿意用表情回应"，不是强制每次都发 ——
     // 强制会显得机械，引导才能让它在合适的时候自然用上。
-    encourage: 1
+    encourage: 1,
+    // 运行结束后按概率自动挑一张表情补发（默认关：这是"额外一次模型调用"，
+    // 模型只答"挑哪张"，max_tokens 24，小模型也扛得住）。
+    // probability：命中概率（0=等于关）；cooldownMs：同一会话两连发的最小间隔。
+    autoPick: { enabled: false, probability: 0.35, cooldownMs: 120000 },
+    // 刚发过的表情先冷却（分钟，0=不冷却）：避免老是那几张反复出现。
+    cooldownMin: 0,
+    // 提示词「常用区」钉住几张（null=自动按库大小取约 3/4；调小=更多表情有机会轮到，0=纯轮换）。
+    keepFamiliar: null
   },
   // 存储
   store: {
@@ -928,6 +978,9 @@ export const DEFAULT_CONFIG = {
     consolidateEnabled: true,
     // 默认一周一次：一天一次删太多，用户明确嫌狠
     consolidateMinIntervalMs: 7 * 24 * 60 * 60 * 1000,
+    // 全群印象总数超过多少条才触发自动整理（默认 4，与 Orchestrator 类常量一致）。
+    // 人少的群建议调低，否则印象攒不起来、自动整理一直不触发。
+    consolidateMinImpressions: 4,
     // ⚠️ 2026-09-22：8 → 12，而且它的含义是"超过这么多条才触发整理"，
     //   **不是"每人最多只能有这么多条"**（印象本身不设上限，只有 60 条安全阀）。
     //   原来整理提示词写"最多保留 5/8 条"，用户手动记到十几条就被自动压回去，

@@ -40,6 +40,19 @@ test('sttCfg：未知 channel 归一到 cloud；timeout 下限保护', () => {
   assert.ok(cfg.cloud.timeoutMs >= 5000);
 });
 
+// ── 设置项补齐回归（2026-09-27）：local.tokens 原先被 sttCfg 归一层丢弃，
+//    tokensPathOf 永远拿到空串 → modelPath 指向单个模型文件时 sherpa-onnx 必失败。
+test('sttCfg：local.tokens 透传（modelPath 指模型文件时 tokens.txt 单独指定）', () => {
+  const cfg = sttCfg(() => ({ voice: { stt: { local: { modelPath: '/m/model.onnx', tokens: '/m/tokens.txt' } } } }));
+  assert.equal(cfg.local.tokens, '/m/tokens.txt');
+});
+
+test('sttCfg：local.tokens 未配置 → 空串（默认行为不变）', () => {
+  assert.equal(DEFAULT_CONFIG.voice.stt.local.tokens, '');
+  const cfg = sttCfg(() => ({}));
+  assert.equal(cfg.local.tokens, '');
+});
+
 test('sttPrimaryChannel：auto 语义（有 key→cloud，无 key→local）', () => {
   updateConfig({ voice: { stt: { channel: 'auto', cloud: { apiKey: 'sk-x' } } } });
   assert.equal(sttPrimaryChannel(sttCfg(getConfig)), 'cloud');

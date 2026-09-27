@@ -30,7 +30,9 @@ export function sttCfg(getConfig) {
       engine: ['sherpa-onnx', 'whisper-cli'].includes(local.engine) ? local.engine : 'sherpa-onnx',
       modelPath: String(local.modelPath || ''),
       cliPath: String(local.cliPath || ''),
-      language: String(local.language || 'zh')
+      language: String(local.language || 'zh'),
+      // modelPath 指向单个模型文件时，sherpa 的 tokens.txt 要靠这个键单独指定（目录则自动取）
+      tokens: String(local.tokens || '')
     },
     fallback: v.fallback === 'none' ? 'none' : 'cloud-to-local'
   };

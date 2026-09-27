@@ -289,7 +289,8 @@ async function collectSearchSeeds({ perQuery = 6 } = {}) {
  * 判定：AI/API 语境 + 免费额度信号；**同一厂商只留信息量最大的一条**。
  */
 export async function collectFreeApiCandidates({ max = 80 } = {}) {
-  const cfg = getConfig().apiNews || {};
+  // 抓取源/订阅与开关同段：webSearch.apiNews（默认配置播种、调度器与 UI 都读这一段）
+  const cfg = getConfig().webSearch?.apiNews || {};
   const sources = Array.isArray(cfg.sources) && cfg.sources.length ? cfg.sources : DEFAULT_API_SOURCES;
   // feeds 默认空 = 只用指定羊毛站（避免综合资讯把清单冲成开源推荐）
   const feeds = Array.isArray(cfg.feeds) ? cfg.feeds : DEFAULT_API_FEEDS;

@@ -333,3 +333,33 @@ test('工具说明不再把所有动作替换成同一个占位工具', () => {
   assert.match(source, /实时新闻\/新梗仍用 web_search/);
   assert.match(source, /images 是这页的图片直链（可直接喂给 send_image 发图）/);
 });
+
+// ── 设置项补齐回归（2026-09-27）────────────────────────────────────────
+// 这些键原先代码已读取、但 DEFAULT_CONFIG 未播种（用户无法从 data/config.json 发现）。
+// 值与各读取点的代码回退默认逐一核对过：播种前后默认行为完全一致。
+test('补齐的隐藏设置：默认值与代码回退默认一致（行为不变）', () => {
+  // api 段（orchestrator.js / prompt.js / tools.js 读取）
+  assert.equal(DEFAULT_CONFIG.api.autoVision, true);
+  assert.equal(DEFAULT_CONFIG.api.hotMemeAutoPrefetch, true);
+  assert.equal(DEFAULT_CONFIG.api.imageRequestReminder, true);
+  assert.equal(DEFAULT_CONFIG.api.pointedNudge, true);
+  assert.equal(DEFAULT_CONFIG.api.sendMessagesArrayOnly, false);
+  assert.equal(DEFAULT_CONFIG.api.runDeadlineMs, 120000);
+  // send 段（tools.js 发送护栏）
+  assert.equal(DEFAULT_CONFIG.send.tidyBrackets, false);
+  assert.equal(DEFAULT_CONFIG.send.stripEmoji, false);
+  assert.equal(DEFAULT_CONFIG.send.blockAiSelfClaim, true);
+  assert.equal(DEFAULT_CONFIG.send.blockJsonFragments, true);
+  // memory 段（orchestrator.js 自动整理阈值，回退常量 4）
+  assert.equal(DEFAULT_CONFIG.memory.consolidateMinImpressions, 4);
+  // sticker 段（orchestrator.js #maybeAutoSticker / prompt.js 表情上下文）
+  assert.deepEqual(DEFAULT_CONFIG.sticker.autoPick, { enabled: false, probability: 0.35, cooldownMs: 120000 });
+  assert.equal(DEFAULT_CONFIG.sticker.cooldownMin, 0);
+  assert.equal(DEFAULT_CONFIG.sticker.keepFamiliar, null);
+  // webSearch 段（web-search.js / orchestrator.js）
+  assert.equal(DEFAULT_CONFIG.webSearch.autoReadChars, 600);
+  assert.equal(DEFAULT_CONFIG.webSearch.hotMemePrefetchTimeoutMs, 6000);
+  assert.deepEqual(DEFAULT_CONFIG.webSearch.newsFeeds, []);
+  // voice 段（modules/voice/stt.js tokensPathOf 兜底）
+  assert.equal(DEFAULT_CONFIG.voice.stt.local.tokens, '');
+});
