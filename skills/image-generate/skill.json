@@ -1,5 +1,6 @@
 {
   "id": "image-generate",
+  "gateCategory": "ext-fun",
   "name": "文生图",
   "version": "1.2.0",
   "apiVersion": 1,

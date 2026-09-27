@@ -12,7 +12,11 @@
 //   version             语义化版本
 //   apiVersion          Skill API 版本（当前 1）
 //   enabledByDefault    默认开关（用户没配置过时用这个）
-//   category            model | message | knowledge | media | utility
+//   category            model | message | knowledge | media | utility（注册表/UI 展示用）
+//   gateCategory        core | search | media | memory | ext-info | ext-fun | ext-text
+//                       （jev 级联 PR1·工具门控路由类别：决定技能工具与技能提示词
+//                        在哪类消息轮次注入。缺省 'core' = 常驻。仅对 kind='skill'
+//                        的 LLM 型生效；plugins/ 确定性型不进门控，恒常驻。）
 //   description         一句话说明（UI 展示）
 //   requires            依赖的能力名数组（如 ['web.fetch']）
 //   capabilities        本 Skill 提供的能力名数组
@@ -87,6 +91,13 @@ export function normalizeManifest(raw, { fallbackId = '' } = {}) {
     problems.push(`category 非法（${raw.category}），已回退为 utility`);
   }
 
+  // jev 级联 PR1：门控路由类别归一化。非法值回退 'core'（常驻，宁可多注入不可漏）。
+  const GATE_CATEGORIES = new Set(['core', 'search', 'media', 'memory', 'ext-info', 'ext-fun', 'ext-text']);
+  const gateCategory = GATE_CATEGORIES.has(raw.gateCategory) ? raw.gateCategory : 'core';
+  if (raw.gateCategory && !GATE_CATEGORIES.has(raw.gateCategory)) {
+    problems.push(`gateCategory 非法（${raw.gateCategory}），已回退为 core 常驻`);
+  }
+
   const capabilities = [...new Set(asArray(raw.capabilities))];
   const requires = [...new Set(asArray(raw.requires))];
 
@@ -107,6 +118,7 @@ export function normalizeManifest(raw, { fallbackId = '' } = {}) {
       apiVersion,
       enabledByDefault: raw.enabledByDefault !== false,
       category,
+      gateCategory,
       description: cleanString(raw.description, ''),
       author: cleanString(raw.author, ''),
       requires: requiresClean,

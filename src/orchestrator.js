@@ -29,7 +29,7 @@ import { shouldCueImageLib, searchImageLib } from './image-lib.js';
 import { chatCompletion, chatCompletionWithRetry, addUsage, isRetryableError, supportsCacheMarkers, isAutoCacheEndpoint, apiWith, resolveApiKey } from './llm.js';
 import { CacheKeeper, nextKeepAliveStep, keepAliveMessages, keepAliveOptionsFor, shouldMarkPrefix, readUsageNumbers, DEFAULT_KEEP_ALIVE, appendKeepAliveLedger, keepAliveLedgerPath, summarizeKeepAliveLedger } from './cache-keepalive.js';
 import { buildToolDefs, toOpenAiTools, executeTool, downloadImagesAsDataUrls } from './tools.js';
-import { hookBeforeContext, hookBeforeLlmMessages, hookAfterResponse, hookBeforeTool, hookAfterTool } from './skill-bridge.js';
+import { hookBeforeContext, hookBeforeLlmMessages, hookAfterResponse, hookBeforeTool, hookAfterTool, skillGateCategories, getExtensionPromptSections } from './skill-bridge.js';
 // 内联调用解析拆到独立模块（tools.js 也要用同一个解析器，放这里会形成循环 import）。
 // 这里再导出一次，保持既有 import 路径（含测试）不变。
 import { parseInlineToolCalls, parseInlineLooseCalls } from './inline-calls.js';
@@ -1552,8 +1552,41 @@ export class Orchestrator {
     // implicit 不发标记，交给服务端自动前缀缓存；explicit 只标 system 一处。
     const cacheMode = resolveCacheMode(cfg.api);
     const cacheFriendlyLayout = cacheMode !== 'off';
+
+    // ── 工具门控前置判定（jev 级联 PR1：verdict 双消费）──────────────────────
+    // 本轮 verdict 在「组装系统提示」之前算好：tools 过滤（后面）与技能提示词段
+    // 过滤（buildSystemPrompt 的 gateCats）共用同一份 cats —— 提示词与工具同源，
+    // 杜绝「工具已裁、提示词还在教它用」的自相矛盾（方案 §2.4 风险④）。
+    // 缓存代价与既有 toolGate 注释同款：verdict 类别随消息变化，闲聊↔工具轮切换时
+    // system 尾部的技能段（≤3000 字符预算）随之变化 → 前缀在这些切换点本来就因
+    // tools 变化而重建（见下方工具门控注释）；同 verdict 连续轮仍逐字节稳定。
+    // 规则层零成本先行；'jev' 档 unknown 时问本地 Jev（弃权/失败→全量保底）。
+    const toolGateMode = String(cfg.api?.toolGate || 'rules');
+    const gateHype = isHypeMode();   // 亢奋轮不门控（系统提示本身已是极简协议）
+    let toolGateVerdict = null;
+    if (toolGateMode !== 'off' && !gateHype) {
+      const gateText = String(session.triggerText || '').slice(0, 400);
+      toolGateVerdict = classifyToolNeed(gateText, {
+        hasImage: (session.wakeImages || session.triggerImages || 0) > 0
+      });
+      if (toolGateVerdict.need === 'unknown' && toolGateMode === 'jev') {
+        try {
+          const jev = await jevGate('toolNeedGate', gateText.slice(0, 160));
+          if (jev && !jev.error && !jev.abstain) {
+            toolGateVerdict = { need: jev.on ? 'all' : 'none', cats: [], reason: `jev:${jev.label}` };
+          }
+        } catch { /* Jev 挂了按 rules 行为（unknown→全量保底） */ }
+      }
+    }
+    // gateCats：null = 技能提示词段全量（门控关/全量保底/未知）；[] = 只留常驻段；
+    // 数组 = 常驻 + gateCategory ∈ cats 的段落。与 filterToolDefs 的 verdict 同源。
+    const gateCats = !toolGateVerdict ? null
+      : toolGateVerdict.need === 'cats' ? toolGateVerdict.cats
+      : toolGateVerdict.need === 'none' ? []
+      : null;
+
     const staticBlock = cacheFriendlyLayout ? buildStaticPersonaBlock() : '';
-    const systemPrompt = buildSystemPrompt();
+    const systemPrompt = buildSystemPrompt({ gateCats });
     // 千问显式缓存：前缀差一个字节就不命中 → 去掉首尾空白/多余换行
     let systemText = (staticBlock ? `${systemPrompt}\n\n${staticBlock}` : systemPrompt).replace(/\s+$/, '');
     if (!systemText.endsWith('\n')) systemText += '\n';
@@ -2187,39 +2220,42 @@ export class Orchestrator {
       if (!searchEnabled && (d.name === 'web_search' || d.name === 'web_fetch' || d.name === 'search_images')) return false;
       return true;
     });
-    // ── 阶段三·工具门控（会话调度省 token）──────────────────────────────────
-    // 规则层零成本先行：纯闲聊轮把 search/media/memory 三类信息工具的 schema 全砍掉
+    // ── 工具门控（会话调度省 token；jev 级联 PR1：verdict 已在组装系统提示前算好）──
+    // 规则层零成本先行：纯闲聊轮把 search/media/memory/ext-* 类信息工具的 schema 全砍掉
     //（模型发言只需 send_*，这些砍了不影响开口）；判不准则全量保底。
     // toolGate='jev' 时，判不准的短消息再问本地 Jev「这轮要不要查资料/看图」（弃权/失败→全量保底）。
     // 缓存代价说明：门控档位（none/cats/all）按消息变化，同会话不同轮的 tools 前缀可能
     // 不同 → 端点 prompt cache 的 tools 块偶发重建。闲聊轮省下的 schema token 通常远大于
     // 偶发重建的代价；要极致缓存稳定可 toolGate='off' 回到 0.5 行为。
-    const toolGateMode = String(cfg.api?.toolGate || 'rules');
+    // PR1 扩展：技能工具（use_xxx 包装/单工具）按 manifest.gateCategory 参与门控，
+    // 技能提示词段同源过滤（buildSystemPrompt 的 gateCats，与 verdict 同一份 cats）。
+    const skillCats = toolGateVerdict ? skillGateCategories() : null;
     let gatedToolDefs = toolDefs;
-    if (toolGateMode !== 'off' && !hypeModeNow) {
-      const gateText = String(session.triggerText || '').slice(0, 400);
-      let verdict = classifyToolNeed(gateText, {
-        hasImage: (session.wakeImages || session.triggerImages || 0) > 0
-      });
-      if (verdict.need === 'unknown' && toolGateMode === 'jev') {
-        try {
-          const jev = await jevGate('toolNeedGate', gateText.slice(0, 160));
-          if (jev && !jev.error && !jev.abstain) {
-            verdict = { need: jev.on ? 'all' : 'none', cats: [], reason: `jev:${jev.label}` };
-          }
-        } catch { /* Jev 挂了按 rules 行为（unknown→全量保底） */ }
-      }
-      gatedToolDefs = filterToolDefs(toolDefs, verdict);
+    if (toolGateVerdict) {
+      gatedToolDefs = filterToolDefs(toolDefs, toolGateVerdict, skillCats);
+      // 留痕（方案 §3.4：sectionsBefore/After + 被裁技能清单，排查"技能不生效"）
+      const sectionsBefore = getExtensionPromptSections();
+      const sectionsAfter = gateCats === null ? sectionsBefore : getExtensionPromptSections({ cats: gateCats });
+      const keptIds = new Set(sectionsAfter.map((s) => s.id));
+      const trimmedSkills = [...new Set(
+        sectionsBefore.filter((s) => !keptIds.has(s.id)).map((s) => s.skillId).filter(Boolean)
+      )];
       session.toolGate = {
         mode: toolGateMode,
-        need: verdict.need,
-        cats: verdict.cats,
-        reason: verdict.reason,
+        need: toolGateVerdict.need,
+        cats: toolGateVerdict.cats,
+        reason: toolGateVerdict.reason,
         toolsBefore: toolDefs.length,
-        toolsAfter: gatedToolDefs.length
+        toolsAfter: gatedToolDefs.length,
+        sectionsBefore: sectionsBefore.length,
+        sectionsAfter: sectionsAfter.length,
+        trimmedSkills
       };
       if (toolDefs.length !== gatedToolDefs.length) {
-        console.log(`[orchestrator] ${chatKey} 工具门控 ${verdict.reason}：${toolDefs.length} → ${gatedToolDefs.length} 个工具（省 ${toolDefs.length - gatedToolDefs.length} 个 schema）`);
+        console.log(`[orchestrator] ${chatKey} 工具门控 ${toolGateVerdict.reason}：${toolDefs.length} → ${gatedToolDefs.length} 个工具（省 ${toolDefs.length - gatedToolDefs.length} 个 schema）`);
+      }
+      if (trimmedSkills.length) {
+        console.log(`[orchestrator] ${chatKey} 技能段按需注入：${sectionsBefore.length} → ${sectionsAfter.length} 段（裁 ${trimmedSkills.join('、')}）`);
       }
     }
     const openAiTools = toOpenAiTools(gatedToolDefs);

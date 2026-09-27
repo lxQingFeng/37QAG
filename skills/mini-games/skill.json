@@ -1,5 +1,6 @@
 {
   "id": "mini-games",
+  "gateCategory": "ext-fun",
   "name": "群内小游戏",
   "version": "2.0.0",
   "apiVersion": 1,

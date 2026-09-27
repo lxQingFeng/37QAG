@@ -367,7 +367,7 @@ async function loadSkillDir(dir, { log = console.log, kind = null } = {}) {
       return { dir, loaded: false, id, error: `${error}（保留旧版本）` };
     }
     skillManager.register({
-      manifest: { id, name: id, version: '0.0.0', apiVersion: SKILL_API_VERSION, requires: [], capabilities: [], settings: {}, configSchema: {}, prompt: null },
+      manifest: { id, name: id, version: '0.0.0', apiVersion: SKILL_API_VERSION, requires: [], capabilities: [], settings: {}, configSchema: {}, prompt: null, gateCategory: 'core' },
       source: found.source, dir,
       relDir: path.relative(APP_ROOT, dir).replace(/\\/g, '/'),
       kind,

@@ -1,5 +1,6 @@
 {
   "id": "sticker-annotate",
+  "gateCategory": "ext-fun",
   "name": "表情包自动标注",
   "version": "1.0.0",
   "apiVersion": 1,

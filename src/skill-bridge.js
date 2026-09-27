@@ -243,11 +243,31 @@ export function listExtensionStatus(context = {}) {
   return skillManager.list(context);
 }
 
-/** 扩展提示词片段（system 尾部可选注入）。 */
+/** 扩展提示词片段（system 尾部可选注入）。context.cats 传入时按 gateCategory 同源过滤（jev 级联 PR1）。 */
 export function getExtensionPromptSections(context = {}) {
   try {
     return skillManager.getPromptSections(context);
   } catch {
     return [];
   }
+}
+
+/**
+ * jev 级联 PR1：skillId → 门控类别映射（喂给 tool-gate 的 categoryOf/filterToolDefs，
+ * 使 use_xxx 包装技能工具与技能单工具按 manifest.gateCategory 参与门控）。
+ * 只收 kind='skill'（LLM 型）——确定性插件不进门控。
+ * 热重载安全：每次调用从注册表现读（开销可忽略，条目 <100）。
+ */
+export function skillGateCategories() {
+  const out = {};
+  try {
+    for (const skill of skillManager.registry.list()) {
+      const id = String(skill?.manifest?.id || '');
+      if (!id) continue;
+      if (String(skill?.kind || '') !== 'skill') continue;   // 确定性插件不进门控（工具恒常驻）
+      const gc = String(skill?.manifest?.gateCategory || 'core');
+      if (gc && gc !== 'core') out[id] = gc;
+    }
+  } catch { /* 注册表不可用 → 空映射（技能工具全部按 core 常驻，行为回到 PR1 前） */ }
+  return out;
 }

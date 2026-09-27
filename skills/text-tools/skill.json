@@ -1,5 +1,6 @@
 {
   "id": "text-tools",
+  "gateCategory": "ext-text",
   "name": "文本工具",
   "version": "1.0.0",
   "description": "文本处理工具集：反转、统计",

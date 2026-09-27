@@ -32,13 +32,23 @@ export const TOOL_CATEGORIES = Object.freeze({
 });
 
 // 信息类信号词（规则层）。命中的词直接归到对应类别。
+// ext-* 三类（jev 三级级联 PR1·技能路由规则层）：命中技能信号词 → 注入对应技能类别
+//（工具与技能提示词同源过滤，见 skill-bridge.js filterPromptSectionsByCats）。
 const SIGNALS = Object.freeze([
   { re: /[?？]$|问[一下个]|帮[我忙].*(查|搜|找|看)|查[一下看个]|搜[一下索个]|搜罗|检索|查查/, cats: ['search'] },
   { re: /天气|气温|下雨|新闻|热点|时事|热搜|百科|是什么|是啥|啥意思|什么意思|解释[一下下]|翻译|算[一下下个]|计算|汇率|股价|比分/, cats: ['search'] },
   { re: /看看?这?[张张图]|图里|图上|认[一下认个]|识图|什么图|识别|这[图张]|看下图|长什么样/, cats: ['media'] },
   { re: /视频|番剧|B站|bilibili|BV[0-9A-Za-z]{8,}/, cats: ['search', 'media'] },
   { re: /以前|上次|之前|上周|上个月|去年|当初|那[时回候]|记得|想[一起下]来|翻[一下翻个]|历史|旧[事账]|那会/, cats: ['memory'] },
-  { re: /头像|自拍|照片|发[的过]?.*图|谁[的]?.*图/, cats: ['media', 'memory'] }
+  { re: /头像|自拍|照片|发[的过]?.*图|谁[的]?.*图/, cats: ['media', 'memory'] },
+  // ── 技能信号词（与上面并集，宁多勿少）──────────────────────────────
+  // 精确模式防误伤（方案 §4 风险3：「算了」不命中「算[一下下个]」——正则要求跟字）。
+  { re: /天气|气温/, cats: ['ext-info'] },                                     // weather-query
+  { re: /算[一下下个]|计算/, cats: ['ext-info'] },                             // calculator
+  { re: /什么梗|啥梗|梗的?意思|梗百科|热梗/, cats: ['ext-info'] },              // knowledge-memes
+  { re: /画[一张个幅点]|生成[一]?[张个幅]?[图张]|P[一张个图]|来一张图|整一张图/, cats: ['ext-fun'] }, // image-generate / random-image
+  { re: /猜[数字大小拳]个?|掷?骰子?|丢骰|抽[签卡]个?|来一把|玩一把|开一局/, cats: ['ext-fun'] },    // mini-games
+  { re: /倒序|翻转[一]?[下个]?文[字本]|字数[统计有多少]|统计字数/, cats: ['ext-text'] }            // text-tools
 ]);
 
 // 纯闲聊排除信号：出现这些**文本形态**时即使短也仍可能是闲聊轮（无信息需求）。
@@ -76,25 +86,43 @@ export function classifyToolNeed(text = '', ctx = {}) {
   return { need: 'unknown', cats: [], reason: 'short-ambiguous' };
 }
 
-/** 工具名 → 类别（未列出 = 'core' 常驻）。 */
-export function categoryOf(toolName) {
+/**
+ * 工具名 → 类别（未列出 = 'core' 常驻）。
+ * @param {string} toolName 工具名
+ * @param {{skillId?: string|null}} [def] 工具定义（技能工具含 skillId；use_xxx 包装工具同样带）
+ * @param {Record<string, string>} [skillCats] skillId → 门控类别映射（来自技能清单的 gateCategory，
+ *   由 skill-bridge.js 的 skillGateCategories() 提供）。未传 / 未收录的技能 → 'core' 常驻。
+ *   ⚠️ 修复（jev 级联 PR1）：此前只按工具名查表，use_xxx 包装技能工具与技能单工具
+ *   一律落到 'core' → 技能工具永远保留，门控对技能生态完全失效（方案 §3.2 缺陷②）。
+ */
+export function categoryOf(toolName, def = null, skillCats = null) {
   const n = String(toolName || '');
   for (const [cat, set] of Object.entries(TOOL_CATEGORIES)) if (set.has(n)) return cat;
+  const sid = String(def?.skillId || '').trim();
+  if (sid && skillCats && Object.prototype.hasOwnProperty.call(skillCats, sid)) {
+    return skillCats[sid];
+  }
   return 'core';
 }
+
+/**
+ * 技能门控类别合法值（manifest.gateCategory 取值域；'core' = 常驻不进门控）。
+ */
+export const SKILL_GATE_CATEGORIES = Object.freeze(['core', 'search', 'media', 'memory', 'ext-info', 'ext-fun', 'ext-text']);
 
 /**
  * 按门控结果过滤工具定义。
  * @param {Array<{name: string, skillId?: string}>} defs
  * @param {{ need: string, cats: string[] }} verdict
+ * @param {Record<string, string>} [skillCats] skillId → gateCategory 映射（categoryOf 用）
  * @returns {Array} 过滤后的 defs（need=all/unknown → 原样全量）
  */
-export function filterToolDefs(defs = [], verdict = { need: 'all' }) {
+export function filterToolDefs(defs = [], verdict = { need: 'all' }, skillCats = null) {
   if (!Array.isArray(defs)) return [];
   if (!verdict || verdict.need === 'all' || verdict.need === 'unknown') return defs;
   const allow = new Set(Array.isArray(verdict.cats) ? verdict.cats : []);
   return defs.filter((d) => {
-    const cat = categoryOf(d?.name);
+    const cat = categoryOf(d?.name, d, skillCats);
     return cat === 'core' || allow.has(cat);
   });
 }

@@ -1,5 +1,6 @@
 {
   "id": "calculator",
+  "gateCategory": "ext-info",
   "name": "计算器",
   "version": "1.0.0",
   "description": "简单的数学计算",

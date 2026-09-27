@@ -1,5 +1,6 @@
 {
   "id": "memory-recall",
+  "gateCategory": "memory",
   "name": "回忆工具",
   "version": "1.0.0",
   "apiVersion": 1,

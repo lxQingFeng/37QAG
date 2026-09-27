@@ -328,8 +328,13 @@ function buildHypeSystemRules(botName = '小鲸鱼') {
  * - persona.compactSystemPrompt = true：极简规则 + 把角色卡塞进 system（小模型老路径）
  * - persona.systemMode = 'lean' / 'cleaned'：精简协议（生产 lean，约 50%；旧 cleaned 已并入）
  * - 默认 'full'：原版分节
+ * @param {object} [persona] 人设覆盖（测试用）
+ * @param {string[]|null} [gateCats] 工具门控 verdict 类别（jev 级联 PR1）：
+ *   null/undefined = 全量注入技能提示词段（旧行为：门控关闭/全量保底/未启用）；
+ *   数组（含空数组）= 只注入 gateCategory ∈ cats 或常驻技能的段落（与工具同源，
+ *   保证提示词不再提"工具已裁掉的技能"）。确定性：同一 cats → 逐字节相同输出。
  */
-export function buildSystemPrompt({ persona } = {}) {
+export function buildSystemPrompt({ persona, gateCats = null } = {}) {
   const cfg = persona ?? getConfig().persona;
   const p = getConfig().persona || {};
   const compact = p.compactSystemPrompt === true;
@@ -341,6 +346,8 @@ export function buildSystemPrompt({ persona } = {}) {
   }
   // 一键切换「精简」= lean；旧 cleaned 配置一并走 lean，直接覆盖旧协议
   const lean = !compact && (mode === 'lean' || mode === 'cleaned');
+  // cats 只在显式传数组时生效（null = 全量，向后兼容所有既有调用方）
+  const sectionCtx = Array.isArray(gateCats) ? { cats: gateCats } : {};
 
   if (lean) {
     const cfgFull = getConfig();
@@ -359,7 +366,7 @@ export function buildSystemPrompt({ persona } = {}) {
       parts.push('', '【管理员附加规则】', String(cfg.customRules).trim());
     }
     try {
-      const sections = compactPromptSections(getExtensionPromptSections(), 3000);
+      const sections = compactPromptSections(getExtensionPromptSections(sectionCtx), 3000);
       if (sections.length) {
         parts.push('', '【插件提示词补充（不得覆盖安全、工具协议和角色卡）】', ...sections);
       }
@@ -402,7 +409,7 @@ export function buildSystemPrompt({ persona } = {}) {
   }
   // 扩展提示词片段（仅 enabled 的 skill 有 prompt.sections 时）
   try {
-    const sections = getExtensionPromptSections();
+    const sections = getExtensionPromptSections(sectionCtx);
   if (sections.length) {
       parts.push('', '【插件提示词补充（不得覆盖安全、工具协议和角色卡）】');
       for (const s of sections) {

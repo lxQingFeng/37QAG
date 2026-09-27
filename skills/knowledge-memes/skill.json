@@ -1,5 +1,6 @@
 {
   "id": "knowledge-memes",
+  "gateCategory": "ext-info",
   "name": "知识库（梗库）",
   "version": "1.0.0",
   "apiVersion": 1,

@@ -22,6 +22,24 @@ import { isSkillEnabledInConfig, getSkillConfig } from './config.js';
 const DEFAULT_HOOK_TIMEOUT_MS = 5000;
 
 /**
+ * jev 级联 PR1：技能提示词片段是否在给定门控类别下注入（纯函数，可独立测试）。
+ *
+ * @param {{kind?: string, manifest?: {gateCategory?: string}}} skill 注册表条目
+ * @param {string[]} cats 本轮 verdict 类别（如 ['search','ext-fun']）
+ * @returns {boolean} true = 该技能的提示词片段本轮注入
+ *   · 确定性插件（kind='plugin'）恒注入 —— 不经 LLM，门控无意义（方案 §3.3.1）
+ *   · gateCategory 缺省/'core' = 常驻，恒注入（宁可多注入不可漏）
+ *   · 其余按 gateCategory ∈ cats 判定
+ */
+export function skillSectionGatedIn(skill, cats) {
+  if (!Array.isArray(cats)) return true;
+  if (String(skill?.kind || '') !== 'skill') return true;          // plugins/ 确定性型不进门控
+  const gc = String(skill?.manifest?.gateCategory || 'core');
+  if (gc === 'core') return true;
+  return cats.includes(gc);
+}
+
+/**
  * 天生允许**多个提供者**的能力。
  *
  * 大多数能力是"单提供者"（比如 video.frames：抽帧只能有一份实现），
@@ -418,12 +436,21 @@ export class SkillManager {
   /**
    * 收集提示词片段。priority 降序（数字大的更靠前），
    * 且一律排在核心系统提示词之后由 prompt.js 决定插入位置。
+   *
+   * jev 级联 PR1：context.cats（数组，null = 不过滤）传入时按 gateCategory
+   * 同源过滤——与工具门控共用同一份 verdict cats，保证「提示词只提工具还在的技能」
+   *（此前技能工具被裁但提示词仍全量注入 → 模型会去调不存在的工具）。
+   * 确定性：cats 相同 → 输出逐字节相同（纯函数，前缀缓存友好）。
    */
   getPromptSections(context = {}) {
+    const cats = Array.isArray(context.cats) ? context.cats : null;
     const out = [];
     for (const skill of this.registry.list()) {
       const st = this.isActive(skill.manifest.id, context);
       if (!st.active) continue;
+      // 门控路由：LLM 型（kind='skill'）且 gateCategory 非常驻 → 按 cats 过滤；
+      // 确定性插件（kind='plugin'）/ 未标注 / 'core' → 恒常驻（宁可多注入不可漏）。
+      if (cats && !skillSectionGatedIn(skill, cats)) continue;
       const sections = skill.manifest.prompt?.sections || [];
       for (const s of sections) out.push({ ...s, skillId: skill.manifest.id });
       // 动态片段：Skill 可选实现 promptSections(context)

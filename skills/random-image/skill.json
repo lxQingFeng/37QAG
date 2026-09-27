@@ -1,5 +1,6 @@
 {
   "id": "random-image",
+  "gateCategory": "ext-fun",
   "name": "二次元随机图片",
   "version": "1.0.0",
   "apiVersion": 1,

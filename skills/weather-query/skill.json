@@ -1,5 +1,6 @@
 {
   "id": "weather-query",
+  "gateCategory": "ext-info",
   "name": "天气查询",
   "version": "1.0.0",
   "description": "查询指定城市的实时天气",

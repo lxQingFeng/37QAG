@@ -1,5 +1,6 @@
 {
   "id": "reverse-image",
+  "gateCategory": "ext-info",
   "name": "以图识图",
   "version": "1.0.0",
   "apiVersion": 1,
