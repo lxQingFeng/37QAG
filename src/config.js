@@ -151,8 +151,10 @@ export const DEFAULT_CONFIG = {
     //                        （同一开关换值，无额外清理）。
     toolGate: 'rules',
     // 工具结果硬上限（防单轮 token 爆炸）：单工具结果截断 / 每轮累计预算（字符）
-    toolResultMaxChars: 6000,
-    toolResultBudgetChars: 12000,
+    // 2026-09-28 收紧：web_fetch 正文提纯（同字符信息量翻倍）后旧档不再必要——
+    // 6000→3000 / 12000→8000；线上档一次性迁移见 migrateToolResultGates。
+    toolResultMaxChars: 3000,
+    toolResultBudgetChars: 8000,
     // 关闭模型"思考模式"。按端点自动选参数（常见国内均适配）：
     //   阿里百炼 enable_thinking:false · 火山/智谱/Kimi/DeepSeek thinking.type=disabled
     //   硅基流动 chat_template_kwargs · 未知中转试 enable_thinking，400 自动去掉重试
@@ -623,8 +625,10 @@ export const DEFAULT_CONFIG = {
     imageSearchUrlBaidu: 'https://image.baidu.com/search/acjson', // 百度图搜（默认主用：返回 JSON、中文相关度好）
     maxResults: 6,
     // web_fetch 每次返回的正文上限（字符）。中文 1 字符 ≈ 1 token，抓一页 2 万字
-    // 就是一次 ¥0.01+ 的输入，比一次正常运行还贵——所以默认压到 8000。
-    fetchMaxChars: 8000,
+    // 就是一次 ¥0.01+ 的输入，比一次正常运行还贵。2026-09-28 正文提纯（剥标签只留
+    // 纯文本）后同字符数信息量翻倍，默认从 8000 收紧到 4000；线上档迁移见
+    // migrateToolResultGates。
+    fetchMaxChars: 4000,
     // 搜索结果补读正文时每条网页截取的长度（字符，下限 200）。
     // 只对 Bing/自定义结果补读（原生搜索已带正文）。补读条数 autoReadPages 不在此设——
     // 它的默认值随 provider 变化（原生 0 / 其它 1），保持未配置时的自适应语义。
@@ -1242,12 +1246,39 @@ function migrateCacheDefaults(cfg) {
   return cfg;
 }
 
+/**
+ * 工具结果三档体积闸的一次性收紧（2026-09-28 · 工具结果 token 优化③）。
+ *
+ * 背景：web_fetch 正文提纯（优化②）后同字符数信息量翻倍，旧档不再必要，配套收紧：
+ *   · webSearch.fetchMaxChars     8000 → 4000（web_fetch / 站内搜索正文上限）
+ *   · api.toolResultMaxChars      6000 → 3000（单工具结果硬截断）
+ *   · api.toolResultBudgetChars  12000 → 8000（每轮累计预算）
+ *
+ * ⚠️ loadConfig 是 deepMerge(DEFAULT_CONFIG, 存档) 且存档值优先：线上跑了一段时间的
+ *   config.json 里这三个值多半是显式写死的旧默认（0.5 时代整段落盘的通病，同 send
+ *   节奏那个坑）——只改 DEFAULT_CONFIG 对它们零作用，必须走一次性迁移。
+ *
+ * 规则（只改「当前值==旧默认」）：等于旧默认 → 跟随新默认；被用户改过（≠旧默认）
+ *   → 一律不动，用户自定义值优先。标记写在 api.toolGatesMigrated，只跑一次。
+ */
+function migrateToolResultGates(cfg) {
+  const api = cfg?.api;
+  if (!api || typeof api !== 'object') return cfg;
+  if (api.toolGatesMigrated === '2026-09-28') return cfg;
+  if (Number(api.toolResultMaxChars) === 6000) api.toolResultMaxChars = DEFAULT_CONFIG.api.toolResultMaxChars;
+  if (Number(api.toolResultBudgetChars) === 12000) api.toolResultBudgetChars = DEFAULT_CONFIG.api.toolResultBudgetChars;
+  const ws = cfg?.webSearch;
+  if (ws && typeof ws === 'object' && Number(ws.fetchMaxChars) === 8000) ws.fetchMaxChars = DEFAULT_CONFIG.webSearch.fetchMaxChars;
+  api.toolGatesMigrated = '2026-09-28';
+  return cfg;
+}
+
 export function loadConfig() {
   try {
     let text = fs.readFileSync(CONFIG_FILE, 'utf8');
     if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
     const parsed = JSON.parse(text);
-    const cfg = migrateCacheDefaults(migrateSendPacing(migrateLocalJev(deepMerge(DEFAULT_CONFIG, parsed))));
+    const cfg = migrateToolResultGates(migrateCacheDefaults(migrateSendPacing(migrateLocalJev(deepMerge(DEFAULT_CONFIG, parsed)))));
     seedDesktopPrefsIfNeeded(cfg);
     return applyDesktopPrefs(cfg);
   } catch (error) {

@@ -130,8 +130,8 @@ test('配置默认：api.toolGate=rules / channel=cloud / 本地端点默认指�
   assert.equal(DEFAULT_CONFIG.api.channel, 'cloud');
   assert.equal(DEFAULT_CONFIG.api.local.baseUrl, 'http://127.0.0.1:18080/v1');
   assert.equal(DEFAULT_CONFIG.api.fallback, 'local-to-cloud');
-  assert.equal(DEFAULT_CONFIG.api.toolResultMaxChars, 6000);
-  assert.equal(DEFAULT_CONFIG.api.toolResultBudgetChars, 12000);
+  assert.equal(DEFAULT_CONFIG.api.toolResultMaxChars, 3000);
+  assert.equal(DEFAULT_CONFIG.api.toolResultBudgetChars, 8000);
 });
 
 // ── jev 级联 PR1：技能路由规则层（categoryOf 扩展 / 技能信号词 / skillCats 过滤）──

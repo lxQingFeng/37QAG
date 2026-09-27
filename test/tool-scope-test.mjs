@@ -174,3 +174,98 @@ test('web_search：站内搜索正常计数，3 次后熔断不再发请求', as
     server.close();
   }
 });
+
+// ── web_fetch 正文提纯 + 三档闸迁移（2026-09-28 · 工具结果 token 优化②③）──
+
+test('web_fetch：正文提纯为纯文本 + links/images，不再直塞原始 HTML', async () => {
+  const pageHtml = '<html><head><title>标题</title><style>.x{color:red}</style></head><body>'
+    + '<script>var noisy = "脚本噪声";</script>'
+    + '<h1>文章标题</h1>'
+    + '<p>这是正文第一段，讲清楚了事情的全貌。' + '正文内容持续输出，讲得足够长以覆盖多个句子。'.repeat(20) + '</p>'
+    + '<a href="/related/1">相关阅读一</a> <a href="/related/2">相关阅读二</a>'
+    + '<img src="/pic/a.jpg" alt="插图">'
+    + '</body></html>';
+  const server = http.createServer((req, res) => {
+    res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+    res.end(pageHtml);
+  });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const port = server.address().port;
+  try {
+    updateConfig({
+      security: { allowPrivateFetchHosts: true, browseLock: { enabled: false, domains: [], searchUrl: '' } },
+      webSearch: { fetchMaxChars: 1500 }
+    });
+    const defs = buildToolDefs();
+    const ctx = { chatKey: 'group:100', kind: 'group', chatId: 100, session: { id: 's-wf-1' } };
+    const out = await executeTool(defs, ctx, 'web_fetch', { url: `http://127.0.0.1:${port}/page` });
+    assert.equal(out.isError, undefined);
+    const payload = JSON.parse(out.content);
+    // 正文是提纯后的纯文本：有正文、没有标签与脚本噪声
+    assert.ok(payload.content.includes('这是正文第一段'), '正文应保留');
+    assert.doesNotMatch(payload.content, /<script|<\/p>|<h1>/, '正文不应再带 HTML 标签');
+    assert.ok(payload.content.length <= 1500, '正文长度受 fetchMaxChars 钳制');
+    // 页面链接（相对路径补全为绝对）与图片直链
+    assert.ok(payload.links.some((l) => String(l.url).endsWith('/related/1') && l.text.includes('相关阅读一')), '应解出页面链接');
+    assert.ok(payload.images.some((i) => String(i.url).endsWith('/pic/a.jpg')), '应解出图片直链');
+    // 序列化顺序：content 在 links 之前（结果超长被硬截断时先砍链接保正文）
+    assert.ok(out.content.indexOf('"content"') < out.content.indexOf('"links"'), 'content 应排在 links 之前');
+    // 同页重抓：走 memo 短路，不重复返回正文
+    const again = JSON.parse((await executeTool(defs, ctx, 'web_fetch', { url: `http://127.0.0.1:${port}/page` })).content);
+    assert.match(again.note, /已经抓过/);
+    assert.equal(again.content, undefined, '重复抓取不应再返回正文');
+  } finally {
+    server.close();
+  }
+});
+
+test('web_fetch：提纯为空的 JS 渲染页兜底退回原始 HTML 并给可执行提示', async () => {
+  const jsPage = '<html><body><div id="root"></div>'
+    + '<script>window.__INITIAL__={"data":"rendered-by-js"};</script>'
+    + '</body></html>';
+  const server = http.createServer((req, res) => {
+    res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+    res.end(jsPage);
+  });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const port = server.address().port;
+  try {
+    updateConfig({
+      security: { allowPrivateFetchHosts: true, browseLock: { enabled: false, domains: [], searchUrl: '' } },
+      webSearch: { fetchMaxChars: 2000 }
+    });
+    const defs = buildToolDefs();
+    const ctx = { chatKey: 'group:100', kind: 'group', chatId: 100, session: { id: 's-wf-2' } };
+    const out = await executeTool(defs, ctx, 'web_fetch', { url: `http://127.0.0.1:${port}/js` });
+    assert.equal(out.isError, undefined);
+    const payload = JSON.parse(out.content);
+    // 提纯为空 → 兜底退回旧行为：原始 HTML 截断
+    assert.ok(payload.content.includes('<script'), '提纯为空应兜底退回原始 HTML');
+    // 空正文提示（可执行的下一步）
+    assert.ok(payload.hint && payload.hint.includes('JS 渲染'), '应给出 JS 渲染页的下一步提示');
+  } finally {
+    server.close();
+  }
+});
+
+test('三档闸迁移：旧默认 8000/6000/12000 跟随新默认，用户自定义值不动', async () => {
+  // 模拟「线上老档」：三键显式写死旧默认（deepMerge 存档值优先，只改 DEFAULT_CONFIG 对它无效）
+  updateConfig({
+    api: { toolResultMaxChars: 6000, toolResultBudgetChars: 12000 },
+    webSearch: { fetchMaxChars: 8000 },
+    security: { browseLock: { enabled: false, domains: [], searchUrl: '' } }
+  });
+  reloadConfig();
+  let cfg = getConfig();
+  assert.equal(cfg.api.toolResultMaxChars, 3000, '旧默认 6000 应迁移到 3000');
+  assert.equal(cfg.api.toolResultBudgetChars, 8000, '旧默认 12000 应迁移到 8000');
+  assert.equal(cfg.webSearch.fetchMaxChars, 4000, '旧默认 8000 应迁移到 4000');
+  assert.equal(cfg.api.toolGatesMigrated, '2026-09-28', '迁移标记应打上且只跑一次');
+  // 用户自定义值（≠旧默认）一律不动
+  updateConfig({ api: { toolResultMaxChars: 5000, toolResultBudgetChars: 9000 }, webSearch: { fetchMaxChars: 6000 } });
+  reloadConfig();
+  cfg = getConfig();
+  assert.equal(cfg.api.toolResultMaxChars, 5000, '自定义值不应被迁移改写');
+  assert.equal(cfg.api.toolResultBudgetChars, 9000, '自定义值不应被迁移改写');
+  assert.equal(cfg.webSearch.fetchMaxChars, 6000, '自定义值不应被迁移改写');
+});

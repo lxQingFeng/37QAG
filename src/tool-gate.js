@@ -129,27 +129,28 @@ export function filterToolDefs(defs = [], verdict = { need: 'all' }, skillCats =
 
 /**
  * 工具结果硬截断（阶段三：工具结果硬上限，防单轮 token 爆炸）。
- * RiyaBot 模式（数值自定，非复制）：单工具结果默认 6000 字符，超长截断 + 尾注。
+ * RiyaBot 模式（数值自定，非复制）：单工具结果默认 3000 字符（2026-09-28 随 web_fetch
+ * 正文提纯从 6000 收紧），超长截断 + 尾注。
  * @param {string} content 工具返回内容
- * @param {number} maxChars 上限（默认 6000）
+ * @param {number} maxChars 上限（默认 3000）
  */
-export function truncateToolResult(content = '', maxChars = 6000) {
+export function truncateToolResult(content = '', maxChars = 3000) {
   const text = String(content ?? '');
-  const limit = Math.max(500, Number(maxChars) || 6000);
+  const limit = Math.max(500, Number(maxChars) || 3000);
   if (text.length <= limit) return text;
   const cut = Math.max(0, limit - 40);
   return `${text.slice(0, cut)}\n…（结果过长已截断，原文 ${text.length} 字符；需要更多细节请换更窄的查询条件）`;
 }
 
 /**
- * 一轮工具结果的累计预算（默认 12000 字符）。
+ * 一轮工具结果的累计预算（默认 8000 字符，2026-09-28 随正文提纯从 12000 收紧）。
  * 超出后把本轮后续工具结果替换为「预算用尽」提示，逼模型收口。
  * @param {Array<string>} results 本轮已收集的结果
- * @param {number} budget 默认 12000
+ * @param {number} budget 默认 8000
  */
-export function toolResultBudgetLeft(results = [], budget = 12000) {
+export function toolResultBudgetLeft(results = [], budget = 8000) {
   const used = (Array.isArray(results) ? results : []).reduce((n, r) => n + String(r || '').length, 0);
-  return Math.max(0, (Number(budget) || 12000) - used);
+  return Math.max(0, (Number(budget) || 8000) - used);
 }
 
 // ── Jev 层规格（供 orchestrator 接入 jevGate；此处只声明，不实现调用）──────

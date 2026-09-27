@@ -135,10 +135,10 @@ async function executeToolGuarded(toolDefs, ctx, name, argsRaw) {
   const t0 = Date.now();
   try {
     const result = await executeTool(toolDefs, ctx, name, argsRaw);
-    // 阶段三·工具结果硬上限：单工具结果截断（默认 6000 字符，api.toolResultMaxChars），
-    // 防 web_fetch 整页 HTML 之类把单轮 token 打爆（RiyaBot 模式，数值自定）。
+    // 阶段三·工具结果硬上限：单工具结果截断（默认 3000 字符，api.toolResultMaxChars，
+    // 2026-09-28 随 web_fetch 正文提纯从 6000 收紧），防 web_fetch 整页之类把单轮 token 打爆。
     if (result && typeof result.content === 'string' && !result.isError) {
-      const maxChars = Number(getConfig().api?.toolResultMaxChars) || 6000;
+      const maxChars = Number(getConfig().api?.toolResultMaxChars) || 3000;
       if (result.content.length > maxChars) {
         result.content = truncateToolResult(result.content, maxChars);
       }
@@ -2695,10 +2695,11 @@ const result = await executeToolGuarded(toolDefs, ctx, name, argsRaw);
         } else {
           contentStr = String(result.content);
         }
-                // 阶段三·轮内累计预算（默认 12000 字符，api.toolResultBudgetChars）：
+                // 阶段三·轮内累计预算（默认 8000 字符，api.toolResultBudgetChars，
+        // 2026-09-28 随 web_fetch 正文提纯从 12000 收紧）：
         // 超出后本轮后续工具结果替换为「预算用尽」短提示，逼模型用已有信息收口，
         // 而不是无限索取更多上下文（多个 web_fetch 叠加是单轮 token 爆炸的另一主因）。
-        const toolBudget = Number(cfg.api?.toolResultBudgetChars) || 12000;
+        const toolBudget = Number(cfg.api?.toolResultBudgetChars) || 8000;
         const budgetLeft = toolResultBudgetLeft(toolResults, toolBudget);
         if (!result.isError && contentStr.length > Math.max(0, budgetLeft)) {
           const budgetNote = `（本轮工具结果总预算 ${toolBudget} 字符已用尽，此结果被缩短。请基于已有信息作答或结束本轮。）`;

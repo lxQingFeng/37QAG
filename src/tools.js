@@ -2390,7 +2390,7 @@ export function buildToolDefs() {
           ctx.session.webSearchRunCount = used + 1;
           const cfg = getConfig();
           const lock = browseLockState();
-          const maxChars = Math.max(1000, Number(cfg.webSearch?.fetchMaxChars) || 8000);
+          const maxChars = Math.max(1000, Number(cfg.webSearch?.fetchMaxChars) || 4000);
           // ① 站内搜索：配了模板就直接抓站点自己的搜索页。
           //    比"全网搜完再把站外结果过滤掉"准得多，也省掉一整轮无用调用。
           const template = String(cfg.security?.browseLock?.searchUrl || '').trim();
@@ -2639,7 +2639,7 @@ export function buildToolDefs() {
     },
     {
       name: 'web_fetch',
-      description: '只读抓取网页正文（默认 ≤8000 字符，设置里可调；同一次处理里重复抓同一页只返回一次）。群友发来链接问"写了什么"时直接抓；配合 web_search 阅读搜索结果的详细内容。返回的 images 是这一页里的图片直链（可直接喂给 send_image 发图）。禁止访问内网/本机地址；开了浏览锁定后只能抓锁定站点。',
+      description: '只读抓取网页正文（默认 ≤4000 字符，设置里可调；正文是提纯后的纯文本，不带 HTML 标签；同一次处理里重复抓同一页只返回一次）。群友发来链接问"写了什么"时直接抓；配合 web_search 阅读搜索结果的详细内容。返回的 images 是这页的图片直链（可直接喂给 send_image 发图）；links 是这页里的页面链接（想深挖就继续抓）。禁止访问内网/本机地址；开了浏览锁定后只能抓锁定站点。',
       parameters: {
         type: 'object',
         properties: { url: { type: 'string', description: '要抓取的 http(s) URL' } },
@@ -2649,7 +2649,7 @@ export function buildToolDefs() {
         try {
           const cfg = getConfig();
           const url = String(args.url ?? '').trim();
-          const maxChars = Math.max(1000, Number(cfg.webSearch?.fetchMaxChars) || 8000);
+          const maxChars = Math.max(1000, Number(cfg.webSearch?.fetchMaxChars) || 4000);
           // 同一次处理里重复抓同一个页面：正文 token 很贵（中文 1 字符 ≈ 1 token），
           // 抓第二遍纯属白烧。但图片直链要照给 —— 模型常常是回来"再看一眼有哪些图"。
           if (!Array.isArray(ctx.session.fetchedPages)) ctx.session.fetchedPages = [];
@@ -2674,9 +2674,14 @@ export function buildToolDefs() {
             for (const u of [...new Set(fromJson)].slice(0, 10)) images.push({ url: u, alt: '' });
           }
           ctx.session.fetchedPages.push({ url: seenKey, images });
+          // 正文提纯（2026-09-28 · 工具结果 token 优化②）：改用 extractPageDigest（站内搜索同款），
+          // 剥掉脚本/样式/标签只留纯正文 + 页面链接。原始 HTML 前 N 字符里一半是标签噪声，
+          // 同字符数下信息量接近翻倍。提纯为空（JS 渲染页/纯脚本页）兜底退回旧行为：原始 HTML 截断。
+          const digest = extractPageDigest(body, result.url, { maxChars, maxLinks: 12 });
+          const content = digest.text || body.slice(0, maxChars);
           // 正文很空 = 多半是 JS 渲染的页面，直接给一句可执行的下一步，省掉几轮瞎试
-          const plainLen = body.replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().length;
-          const emptyHint = (plainLen < 400 && !images.length)
+          // （digest.text 是"去脚本去标签"的正文，长度同旧的 plainLen 口径，阈值不变）
+          const emptyHint = (digest.text.length < 400 && !images.length)
             ? '这页 HTML 里几乎没有可读内容（可能靠 JS 渲染）。可以试站点的 RSS（/feed、/search/关键词/feed/rss2/）、站点的 API（WordPress 站可试 /wp-json/wp/v2/posts?search=关键词），或直接给具体的文章页 URL。'
             : '';
           return ok({
@@ -2685,7 +2690,9 @@ export function buildToolDefs() {
             truncated: result.truncated || body.length > maxChars,
             images,
             ...(emptyHint ? { hint: emptyHint } : {}),
-            content: body.slice(0, maxChars)
+            content,
+            // links 放在 content 之后：结果超长被硬截断时先砍导航链接、保住正文
+            ...(digest.links.length ? { links: digest.links } : {})
           });
         } catch (error) {
           return err(`抓取失败：${error?.message ?? error}`);

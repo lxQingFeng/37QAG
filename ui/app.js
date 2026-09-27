@@ -6794,7 +6794,7 @@ function renderSearchSection(c) {
   const main = settingsBlock('搜索服务', '', `
     ${checkRow('cfg-websearch', '联网搜索：启用 web_search / web_fetch 工具', c.webSearch?.enabled !== false)}
     ${grid(2, [
-      ffNum('cfg-fetchmaxchars', '抓网页正文上限', '字符 · 默认 8000', c.webSearch?.fetchMaxChars ?? 8000, 'min="1000" max="50000" step="1000"',
+      ffNum('cfg-fetchmaxchars', '抓网页正文上限', '字符 · 默认 4000', c.webSearch?.fetchMaxChars ?? 4000, 'min="1000" max="50000" step="1000"',
         'web_fetch 单次最多返回这么多字符。调大读得更全，但一次抓取可能更贵。'),
       ffSelect('cfg-searchprovider', '搜索提供方', '失败策略见下',
         `<option value="native" ${prov === 'native' ? 'selected' : ''}>模型原生联网（enable_search，推荐）</option>
@@ -10963,7 +10963,7 @@ async function saveConfig({ quiet = false } = {}) {
       enabled: chk('#cfg-websearch', c.webSearch?.enabled !== false),
       provider: val('#cfg-searchprovider', c.webSearch?.provider || 'native'),
       searchUrl: val('#cfg-searchurl', c.webSearch?.searchUrl || 'https://cn.bing.com/search').trim() || 'https://cn.bing.com/search',
-      fetchMaxChars: clampInt(val('#cfg-fetchmaxchars', c.webSearch?.fetchMaxChars ?? 8000), 1000, 50000, 8000),
+      fetchMaxChars: clampInt(val('#cfg-fetchmaxchars', c.webSearch?.fetchMaxChars ?? 4000), 1000, 50000, 4000),
       // wiki 不在这里改：外部百科源由「知识库」页签管，这里靠上面的 ...c.webSearch 原样透传。
       // 曾经写成 enabled:false / sources:[] 无条件覆盖，导致每次保存搜索设置都把百科源清空，
       // external_lookup 随之失效（而提示词仍在叫模型去用它）。
