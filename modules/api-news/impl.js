@@ -261,7 +261,9 @@ const SEED_QUERIES = [
 async function collectSearchSeeds({ perQuery = 6 } = {}) {
   let webSearch = null;
   try {
-    ({ webSearch } = await import('./web-search.js'));
+    // 2026-09-27 修复：模块化平移时相对路径漏改（./web-search.js 在本目录不存在 →
+    // 定向搜索恒静默失败）。正确目标是 src/web-search.js；用户已批准激活此链路。
+    ({ webSearch } = await import('../../src/web-search.js'));
   } catch { return []; }
   const out = [];
   await Promise.all(SEED_QUERIES.map(async (q) => {
