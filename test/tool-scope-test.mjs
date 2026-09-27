@@ -1,6 +1,7 @@
 import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -8,6 +9,7 @@ const dataRoot = fs.mkdtempSync(path.join(os.tmpdir(), '37qag-tools-'));
 process.env.QQ_AGENT_DATA_DIR = dataRoot;
 
 const { buildToolDefs, executeTool } = await import('../src/tools.js');
+const { updateConfig, getConfig, reloadConfig } = await import('../src/config.js');
 const { getConversationMemory } = await import('../src/conversation-memory/runtime.js');
 const { TaskLedger, TASK_STATUS } = await import('../src/task-ledger.js');
 
@@ -105,4 +107,70 @@ test('send_message 的 taskId 会推进任务并记录平台回执', async () =>
   const task = ledger.find(saved.taskId, { chatKey: 'group:100' });
   assert.equal(task.status, TASK_STATUS.IN_PROGRESS);
   assert.equal(task.platformReceipt.receiptId, 'receipt-1');
+});
+
+// ── web_search 每次运行 3 次熔断（2026-09-28 · 工具结果 token 优化①）──
+
+test('web_search：第 4 次搜索直接拒绝，拿不到新结果自然收口', async () => {
+  const defs = buildToolDefs();
+  const ctx = {
+    chatKey: 'group:100',
+    kind: 'group',
+    chatId: 100,
+    session: { id: 's-ws-1', webSearchRunCount: 3 }
+  };
+  const fourth = await executeTool(defs, ctx, 'web_search', { query: '第四次搜索' });
+  assert.equal(fourth.isError, true, '第 4 次应被拒');
+  assert.match(fourth.content, /上限 3/);
+  assert.match(fourth.content, /已有搜索结果/);
+  assert.equal(ctx.session.webSearchRunCount, 3, '被拒的调用不消耗搜索次数');
+  // 空 query 直接打回（不占搜索次数）
+  const empty = await executeTool(defs, ctx, 'web_search', { query: '   ' });
+  assert.equal(empty.isError, true);
+  assert.match(empty.content, /query 不能为空/);
+  assert.equal(ctx.session.webSearchRunCount, 3, '空 query 也不应消耗搜索次数');
+});
+
+test('web_search：站内搜索正常计数，3 次后熔断不再发请求', async () => {
+  const hits = [];
+  const server = http.createServer((req, res) => {
+    hits.push(req.url);
+    res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+    res.end('<html><body><ul>'
+      + '<li><a href="/doc/1">结果一 标题</a></li>'
+      + '<li><a href="/doc/2">结果二 标题</a></li>'
+      + '</ul><p>页面正文 mock。</p></body></html>');
+  });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const port = server.address().port;
+  try {
+    updateConfig({
+      security: {
+        allowPrivateFetchHosts: true,
+        browseLock: { enabled: true, domains: ['127.0.0.1'], searchUrl: `http://127.0.0.1:${port}/search?q={query}` }
+      },
+      webSearch: { fetchMaxChars: 2000 }
+    });
+    const defs = buildToolDefs();
+    const ctx = {
+      chatKey: 'group:100',
+      kind: 'group',
+      chatId: 100,
+      session: { id: 's-ws-2' }
+    };
+    for (let i = 1; i <= 3; i++) {
+      const out = await executeTool(defs, ctx, 'web_search', { query: `关键词${i}` });
+      assert.equal(out.isError, undefined, `第 ${i} 次搜索应成功`);
+      const payload = JSON.parse(out.content);
+      assert.ok(payload.links.length >= 2, `第 ${i} 次站内搜索应解析出链接`);
+    }
+    assert.equal(ctx.session.webSearchRunCount, 3, '计数器应随成功搜索递增');
+    assert.equal(hits.length, 3, '本地 mock 应被命中 3 次');
+    const fourth = await executeTool(defs, ctx, 'web_search', { query: '第四次' });
+    assert.equal(fourth.isError, true, '第 4 次应被拒');
+    assert.match(fourth.content, /上限 3/);
+    assert.equal(hits.length, 3, '被拒的搜索不应再发新请求');
+  } finally {
+    server.close();
+  }
 });

@@ -2379,6 +2379,15 @@ export function buildToolDefs() {
       async execute(ctx, args) {
         try {
           const query = String(args.query ?? '');
+          if (!query.trim()) return err('query 不能为空');
+          // 每次运行最多搜 3 次（2026-09-28）：真实档日志审计里「搜索循环」是
+          // 工具 token 浪费 Top1（换词重搜 + 拖满 deadline）。第 4 次直接拒——
+          // 模型拿不到新结果自然收口。写法同 search_images 的 imageSearchCount。
+          const used = Number(ctx.session.webSearchRunCount) || 0;
+          if (used >= 3) {
+            return err(`这次处理已经搜过 ${used} 次了（上限 3）。请直接用已有搜索结果作答，不要换词再搜了。`);
+          }
+          ctx.session.webSearchRunCount = used + 1;
           const cfg = getConfig();
           const lock = browseLockState();
           const maxChars = Math.max(1000, Number(cfg.webSearch?.fetchMaxChars) || 8000);
