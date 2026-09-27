@@ -223,24 +223,25 @@ function applyCustomColors({ bg = '', bg2 = '', accent = '', text = '', toolAcce
     || (getThemePref() === 'custom' && DEEPSPACE_UI_IDS.has(themeId));
   const warmroomOn = root.getAttribute('data-ui-style') === 'warmroom'
     || (getThemePref() === 'custom' && WARMROOM_UI_IDS.has(themeId));
-  if (maidOn) {
-    const m = THEME_PRESET_MAID.colors;
+  // 形态锁色改查服务端色值缓存（P1-c 单源）；缓存未就绪时锁色退化为传入色
+  const m = themeColorsOf('deepseek-maid');
+  const p = themeColorsOf('bijingyu-pixel');
+  const cMech = themeColorsOf('mech-orange');
+  const cSujian = themeColorsOf('sujian-paper');
+  const cDeepspace = themeColorsOf('deep-space-console');
+  const cWarmroom = themeColorsOf('warm-room');
+  if (maidOn && m) {
     bg = m.bg; bg2 = m.bg2; accent = m.accent; text = m.text; toolAccent = m.toolAccent;
-  } else if (pixelOn) {
-    const p = THEME_PRESET_PIXEL.colors;
+  } else if (pixelOn && p) {
     bg = p.bg; bg2 = p.bg2; accent = p.accent; text = p.text; toolAccent = p.toolAccent;
-  } else if (mechOn) {
-    const c = THEME_PRESET_MECH.colors;
-    bg = c.bg; bg2 = c.bg2; accent = c.accent; text = c.text; toolAccent = c.toolAccent;
-  } else if (sujianOn) {
-    const c = THEME_PRESET_SUJIAN.colors;
-    bg = c.bg; bg2 = c.bg2; accent = c.accent; text = c.text; toolAccent = c.toolAccent;
-  } else if (deepspaceOn) {
-    const c = THEME_PRESET_DEEPSPACE.colors;
-    bg = c.bg; bg2 = c.bg2; accent = c.accent; text = c.text; toolAccent = c.toolAccent;
-  } else if (warmroomOn) {
-    const c = THEME_PRESET_WARMROOM.colors;
-    bg = c.bg; bg2 = c.bg2; accent = c.accent; text = c.text; toolAccent = c.toolAccent;
+  } else if (mechOn && cMech) {
+    bg = cMech.bg; bg2 = cMech.bg2; accent = cMech.accent; text = cMech.text; toolAccent = cMech.toolAccent;
+  } else if (sujianOn && cSujian) {
+    bg = cSujian.bg; bg2 = cSujian.bg2; accent = cSujian.accent; text = cSujian.text; toolAccent = cSujian.toolAccent;
+  } else if (deepspaceOn && cDeepspace) {
+    bg = cDeepspace.bg; bg2 = cDeepspace.bg2; accent = cDeepspace.accent; text = cDeepspace.text; toolAccent = cDeepspace.toolAccent;
+  } else if (warmroomOn && cWarmroom) {
+    bg = cWarmroom.bg; bg2 = cWarmroom.bg2; accent = cWarmroom.accent; text = cWarmroom.text; toolAccent = cWarmroom.toolAccent;
   }
   const set = (name, val) => {
     if (val) root.style.setProperty(name, val);
@@ -524,95 +525,36 @@ const PIXEL_UI_IDS = new Set(['bijingyu-pixel', 'bijingyu', 'pixel-jade', 'baiji
 const SUJIAN_UI_IDS = new Set(['sujian-paper', 'sujian', 'paper-letter']);
 const DEEPSPACE_UI_IDS = new Set(['deep-space-console', 'deepspace', 'deep-space']);
 const WARMROOM_UI_IDS = new Set(['warm-room', 'warmroom']);
-const THEME_PRESET_SUJIAN = {
-  id: 'sujian-paper',
-  name: '素笺',
-  description: '宣纸白 + 墨字 + 朱砂印 + 靛青批注（浅色信笺风）',
-  colors: {
-    bg: '#f7f3ea',
-    bg2: '#fffcf5',
-    bg3: '#efe8d9',
-    accent: '#b3423a',
-    toolAccent: '#33608c',
-    text: '#2b2724',
-    muted: '#6e655a',
-    faint: '#a09383'
+
+// ── 主题色值单源（P1-c，2026-09-27）：色值唯一来源 = 服务端 GET /api/themes
+// （modules/themes/impl.js 的 BUILTIN_THEMES + themes/ 内置文件 + data/themes 用户层）。
+// 原先前端还有 6 份 THEME_PRESET_* 硬编码副本（~90 行），与 impl.js 各自维护、
+// 改一处忘一处。现在启动时拉一次缓存；本页内所有形态锁色/预设列表/兜底查找
+// 都走这份缓存。缓存未就绪（或同源服务不可用）时锁色退化为 localStorage 自定义色
+// ——index.html 的首屏内联脚本本来就先用 localStorage 兜底，不依赖这里。
+const SERVER_THEMES = [];          // 启动时填充：[{ id, name, description, colors, … }]
+const THEME_COLORS = new Map();    // id（小写）→ colors
+let themeColorsPromise = null;
+async function ensureServerThemeColors() {
+  if (THEME_COLORS.size) return SERVER_THEMES;
+  if (!themeColorsPromise) {
+    themeColorsPromise = api('/api/themes')
+      .then((r) => {
+        for (const t of (r?.themes || [])) {
+          if (!t?.id || !t?.colors) continue;
+          SERVER_THEMES.push(t);
+          THEME_COLORS.set(String(t.id).toLowerCase(), t.colors);
+        }
+        return SERVER_THEMES;
+      })
+      .catch(() => SERVER_THEMES);   // 失败 = 空缓存：形态仍可切，锁色走自定义色兜底
   }
-};
-const THEME_PRESET_DEEPSPACE = {
-  id: 'deep-space-console',
-  name: '深空控制台',
-  description: '深空蓝黑 + 冰青 HUD + 琥珀仪表（暗色任务控制台风）',
-  colors: {
-    bg: '#0a0f1c',
-    bg2: '#0f1626',
-    bg3: '#182136',
-    accent: '#4cc9f0',
-    toolAccent: '#ffb454',
-    text: '#e8f2fa',
-    muted: '#8ba0b8',
-    faint: '#5a6d85'
-  }
-};
-const THEME_PRESET_WARMROOM = {
-  id: 'warm-room',
-  name: '暖房',
-  description: '奶油米 + 陶土橘 + 鼠尾草绿（暖色居家风）',
-  colors: {
-    bg: '#f6eadb',
-    bg2: '#fff8ee',
-    bg3: '#efdec8',
-    accent: '#e07a5f',
-    toolAccent: '#7fa37a',
-    text: '#42352b',
-    muted: '#8b7a6b',
-    faint: '#b3a294'
-  }
-};
-const THEME_PRESET_MECH = {
-  id: 'mech-orange',
-  name: '机甲 · 黑橙',
-  colors: {
-    bg: '#0c0c0e',
-    bg2: '#151517',
-    bg3: '#222224',
-    accent: '#f5a623',
-    toolAccent: '#ff7a00',
-    text: '#f4f4f5',
-    muted: '#a8a8ad',
-    faint: '#6e6e73'
-  }
-};
-const THEME_PRESET_MAID = {
-  id: 'deepseek-maid',
-  name: 'DeepSeek 娘',
-  description: '深蓝 + 鎏金 + 宫廷壁纸',
-  colors: {
-    bg: '#101c2e',
-    bg2: '#16243a',
-    bg3: '#1e3048',
-    accent: '#4d8fc9',
-    toolAccent: '#d4b56a',
-    text: '#e8eef6',
-    muted: '#9aafc4',
-    faint: '#6d8199'
-  }
-};
-const THEME_PRESET_PIXEL = {
-  id: 'bijingyu-pixel',
-  name: '白京玉 · 像素夜',
-  description: '精致像素雨夜咖啡馆：暖夜蓝 + 灯火琥珀 + 奶油字',
-  colors: {
-    bg: '#1a2438',
-    bg2: '#24344f',
-    bg3: '#2e4260',
-    accent: '#e0a85c',
-    toolAccent: '#9bb8d4',
-    text: '#f0ebe2',
-    muted: '#a8b4c4',
-    faint: '#6e7c90'
-  }
-};
+  return themeColorsPromise;
+}
+/** 同步查某主题色值（缓存未就绪返回 undefined；别名大小写不敏感）。 */
+function themeColorsOf(id) {
+  return THEME_COLORS.get(String(id || '').toLowerCase());
+}
 
 function syncUiStyle(themeId, themePref) {
   const root = document.documentElement;
@@ -635,84 +577,96 @@ function syncUiStyle(themeId, themePref) {
     const fx = state?.config?.ui?.mechFx;
     const on = fx === undefined || fx === null ? true : fx !== false;
     root.setAttribute('data-mech-fx', on ? 'on' : 'off');
-    // 浅色 token：customText 若被改成深色会盖掉机甲白字
-    const mc = THEME_PRESET_MECH.colors;
-    root.style.setProperty('--text', mc.text);
-    root.style.setProperty('--muted', mc.muted);
-    root.style.setProperty('--faint', mc.faint);
-    root.style.setProperty('--bg', mc.bg);
-    root.style.setProperty('--bg-2', mc.bg2);
-    root.style.setProperty('--bg-3', mc.bg3);
-    root.style.setProperty('--accent', mc.accent);
-    root.style.setProperty('--tool-accent', mc.toolAccent);
+    // 浅色 token：customText 若被改成深色会盖掉机甲白字（色值查服务端缓存，P1-c 单源）
+    const mc = themeColorsOf('mech-orange');
+    if (mc) {
+      root.style.setProperty('--text', mc.text);
+      root.style.setProperty('--muted', mc.muted);
+      root.style.setProperty('--faint', mc.faint);
+      root.style.setProperty('--bg', mc.bg);
+      root.style.setProperty('--bg-2', mc.bg2);
+      root.style.setProperty('--bg-3', mc.bg3);
+      root.style.setProperty('--accent', mc.accent);
+      root.style.setProperty('--tool-accent', mc.toolAccent);
+    }
     syncTitleBarFromTheme();
   } else if (maid) {
     root.setAttribute('data-ui-style', 'maid');
     root.removeAttribute('data-mech-fx');
     // 立刻注入浅色 token，避免 applyCustomColors 用旧的深色 customText 覆盖
-    const m = THEME_PRESET_MAID.colors;
-    root.style.setProperty('--text', m.text);
-    root.style.setProperty('--muted', m.muted);
-    root.style.setProperty('--faint', m.faint);
-    root.style.setProperty('--bg', m.bg);
-    root.style.setProperty('--bg-2', m.bg2);
-    root.style.setProperty('--bg-3', m.bg3);
+    const m = themeColorsOf('deepseek-maid');
+    if (m) {
+      root.style.setProperty('--text', m.text);
+      root.style.setProperty('--muted', m.muted);
+      root.style.setProperty('--faint', m.faint);
+      root.style.setProperty('--bg', m.bg);
+      root.style.setProperty('--bg-2', m.bg2);
+      root.style.setProperty('--bg-3', m.bg3);
+    }
     syncTitleBarFromTheme();
   } else if (pixel) {
     root.setAttribute('data-ui-style', 'pixel');
     root.removeAttribute('data-mech-fx');
     // 同款教训：customText 若是深色会盖掉主题浅字 → 启动/切换时锁 token
-    const p = THEME_PRESET_PIXEL.colors;
-    root.style.setProperty('--text', p.text);
-    root.style.setProperty('--muted', p.muted);
-    root.style.setProperty('--faint', p.faint);
-    root.style.setProperty('--bg', p.bg);
-    root.style.setProperty('--bg-2', p.bg2);
-    root.style.setProperty('--bg-3', p.bg3);
-    root.style.setProperty('--accent', p.accent);
-    root.style.setProperty('--tool-accent', p.toolAccent);
+    const p = themeColorsOf('bijingyu-pixel');
+    if (p) {
+      root.style.setProperty('--text', p.text);
+      root.style.setProperty('--muted', p.muted);
+      root.style.setProperty('--faint', p.faint);
+      root.style.setProperty('--bg', p.bg);
+      root.style.setProperty('--bg-2', p.bg2);
+      root.style.setProperty('--bg-3', p.bg3);
+      root.style.setProperty('--accent', p.accent);
+      root.style.setProperty('--tool-accent', p.toolAccent);
+    }
     syncTitleBarFromTheme();
   } else if (sujian) {
     // 素笺（浅色）：token 锁主题色（customText 被改深也不破坏信笺白）
     root.setAttribute('data-ui-style', 'sujian');
     root.removeAttribute('data-mech-fx');
-    const c = THEME_PRESET_SUJIAN.colors;
-    root.style.setProperty('--text', c.text);
-    root.style.setProperty('--muted', c.muted);
-    root.style.setProperty('--faint', c.faint);
-    root.style.setProperty('--bg', c.bg);
-    root.style.setProperty('--bg-2', c.bg2);
-    root.style.setProperty('--bg-3', c.bg3);
-    root.style.setProperty('--accent', c.accent);
-    root.style.setProperty('--tool-accent', c.toolAccent);
+    const c = themeColorsOf('sujian-paper');
+    if (c) {
+      root.style.setProperty('--text', c.text);
+      root.style.setProperty('--muted', c.muted);
+      root.style.setProperty('--faint', c.faint);
+      root.style.setProperty('--bg', c.bg);
+      root.style.setProperty('--bg-2', c.bg2);
+      root.style.setProperty('--bg-3', c.bg3);
+      root.style.setProperty('--accent', c.accent);
+      root.style.setProperty('--tool-accent', c.toolAccent);
+    }
     syncTitleBarFromTheme();
   } else if (deepspace) {
     // 深空控制台（深色）：锁浅字 token，防 customText 深色覆盖
     root.setAttribute('data-ui-style', 'deepspace');
     root.removeAttribute('data-mech-fx');
-    const c = THEME_PRESET_DEEPSPACE.colors;
-    root.style.setProperty('--text', c.text);
-    root.style.setProperty('--muted', c.muted);
-    root.style.setProperty('--faint', c.faint);
-    root.style.setProperty('--bg', c.bg);
-    root.style.setProperty('--bg-2', c.bg2);
-    root.style.setProperty('--bg-3', c.bg3);
-    root.style.setProperty('--accent', c.accent);
-    root.style.setProperty('--tool-accent', c.toolAccent);
+    const c = themeColorsOf('deep-space-console');
+    if (c) {
+      root.style.setProperty('--text', c.text);
+      root.style.setProperty('--muted', c.muted);
+      root.style.setProperty('--faint', c.faint);
+      root.style.setProperty('--bg', c.bg);
+      root.style.setProperty('--bg-2', c.bg2);
+      root.style.setProperty('--bg-3', c.bg3);
+      root.style.setProperty('--accent', c.accent);
+      root.style.setProperty('--tool-accent', c.toolAccent);
+    }
     syncTitleBarFromTheme();
   } else if (warmroom) {
     // 暖房（浅色）：同锁 token
     root.setAttribute('data-ui-style', 'warmroom');
     root.removeAttribute('data-mech-fx');
-    const c = THEME_PRESET_WARMROOM.colors;
-    root.style.setProperty('--text', c.text);
-    root.style.setProperty('--muted', c.muted);
-    root.style.setProperty('--faint', c.faint);
-    root.style.setProperty('--bg', c.bg);
-    root.style.setProperty('--bg-2', c.bg2);
-    root.style.setProperty('--bg-3', c.bg3);
-    root.style.setProperty('--accent', c.accent);
-    root.style.setProperty('--tool-accent', c.toolAccent);
+    const c = themeColorsOf('warm-room');
+    if (c) {
+      root.style.setProperty('--text', c.text);
+      root.style.setProperty('--muted', c.muted);
+      root.style.setProperty('--faint', c.faint);
+      root.style.setProperty('--bg', c.bg);
+      root.style.setProperty('--bg-2', c.bg2);
+      root.style.setProperty('--bg-3', c.bg3);
+      root.style.setProperty('--accent', c.accent);
+      root.style.setProperty('--tool-accent', c.toolAccent);
+    }
     syncTitleBarFromTheme();
   } else {
     root.removeAttribute('data-ui-style');
@@ -917,7 +871,7 @@ function toggleCustomTheme() {
       (cur.bg || '').toLowerCase() === CUSTOM_START.bg.toLowerCase()
       || (cur.accent || '').toLowerCase() === (CUSTOM_START.accent || '').toLowerCase()
     )) {
-      state.config.ui.customThemeId = THEME_PRESET_MECH.id;
+      state.config.ui.customThemeId = 'mech-orange';
     }
   }
   applyTheme('custom');
@@ -9347,7 +9301,7 @@ function bindCustomThemeSettings(c) {
   async function loadThemePresets() {
     const host = $('#theme-presets');
     if (!host) return;
-    let list = [THEME_PRESET_MECH, THEME_PRESET_MAID, THEME_PRESET_PIXEL, THEME_PRESET_SUJIAN, THEME_PRESET_DEEPSPACE, THEME_PRESET_WARMROOM];
+    let list = SERVER_THEMES.length ? SERVER_THEMES : [];
     let current = state.config?.ui?.customThemeId || '';
     try {
       const r = await api('/api/themes');
@@ -9371,12 +9325,8 @@ function bindCustomThemeSettings(c) {
           await api('/api/themes/apply', { method: 'POST', body: JSON.stringify({ id }) });
           const r = await api('/api/themes');
           const th = (r?.themes || []).find((x) => x.id === id)
-            || (id === THEME_PRESET_MECH.id ? THEME_PRESET_MECH : null)
-            || (MAID_UI_IDS.has(String(id).toLowerCase()) ? THEME_PRESET_MAID : null)
-            || (PIXEL_UI_IDS.has(String(id).toLowerCase()) ? THEME_PRESET_PIXEL : null)
-            || (SUJIAN_UI_IDS.has(String(id).toLowerCase()) ? THEME_PRESET_SUJIAN : null)
-            || (DEEPSPACE_UI_IDS.has(String(id).toLowerCase()) ? THEME_PRESET_DEEPSPACE : null)
-            || (WARMROOM_UI_IDS.has(String(id).toLowerCase()) ? THEME_PRESET_WARMROOM : null);
+            // 兜底：接口清单里没有时查启动缓存（P1-c 单源，替代原 6 份硬编码预设）
+            || (themeColorsOf(id) ? { id, colors: themeColorsOf(id) } : null);
           if (!th?.colors) throw new Error('找不到主题 ' + id);
           applyThemeColorsFromObject(th.colors, th.id);
           loadThemePresets();
@@ -11740,7 +11690,9 @@ window.addEventListener('resize', () => {
   // 主题：以后端配置为准（跨设备同步）。
   // 必须先挂上 state.config，applyTheme 才能读到已存的 custom* 颜色。
   try {
-    const cfg0 = await api('/api/config');
+    // P1-c 色值单源：与配置并行拉一次主题清单，保证首次 applyTheme 时
+    // 形态锁色缓存已就绪（本地同源接口，毫秒级；失败走 localStorage 兜底）
+    const [cfg0] = await Promise.all([api('/api/config'), ensureServerThemeColors()]);
     state.config = cfg0;
     const t = cfg0?.ui?.theme;
     if (THEME_VALUES.includes(t)) applyTheme(t);

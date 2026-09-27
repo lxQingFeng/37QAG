@@ -30,23 +30,20 @@ test('三份 theme.json 落在 themes/ 内置层，listThemes 收录且颜色完
   }
 });
 
-// ── 2. 跨文件一致性：app.js 预设 ↔ theme.json ─────────────────────────────
-test('ui/app.js 三个预设常量与 theme.json 逐色一致（防两处漂移）', () => {
+// ── 2. 主题色值单源（P1-c，2026-09-27）───────────────────────────────────
+test('app.js 不再硬编码主题色值副本：色值唯一来源 = /api/themes（运行时等价由冒烟 --bg 断言守护）', () => {
   const appJs = read('ui/app.js');
-  for (const [id, preset] of [
-    ['sujian-paper', 'THEME_PRESET_SUJIAN'],
-    ['deep-space-console', 'THEME_PRESET_DEEPSPACE'],
-    ['warm-room', 'THEME_PRESET_WARMROOM']
-  ]) {
-    const theme = JSON.parse(read(`themes/${id}.json`)).colors;
-    const m = appJs.match(new RegExp(`const ${preset} = \\{[\\s\\S]*?\\n\\};`));
-    assert.ok(m, `${preset} 常量应存在于 app.js`);
-    const block = m[0];
-    for (const [k, v] of Object.entries(theme)) {
-      const key = k.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
-      assert.ok(block.includes(`${key}: '${v}'`), `${preset}.${key} 应等于 ${v}`);
-    }
+  // 6 份 THEME_PRESET_* 副本应全部删除
+  assert.ok(!/const THEME_PRESET_[A-Z]+ = \{/.test(appJs), '不应再有 THEME_PRESET_* 色值硬编码（单源化后）');
+  // 单源设施齐全
+  assert.ok(appJs.includes('async function ensureServerThemeColors()'), '应有启动拉取函数 ensureServerThemeColors');
+  assert.ok(appJs.includes('function themeColorsOf('), '应有同步查色函数 themeColorsOf');
+  // 六个形态分支都改为查缓存（锁色来源 = 服务端清单）
+  for (const id of ['mech-orange', 'deepseek-maid', 'bijingyu-pixel', 'sujian-paper', 'deep-space-console', 'warm-room']) {
+    assert.ok(appJs.includes(`themeColorsOf('${id}')`), `锁色应查服务端缓存 ${id}`);
   }
+  // boot 应在首次 applyTheme 前拉取主题清单
+  assert.ok(/Promise\.all\(\[api\('\/api\/config'\), ensureServerThemeColors\(\)\]\)/.test(appJs), 'boot 应并行拉取配置与主题清单');
 });
 
 // ── 3. data-ui-style 机制扩展完整度（app.js 五处）────────────────────────
@@ -58,7 +55,7 @@ test('app.js：三个 UI_IDS 集合 + data-ui-style 三分支 + 预设 fallback 
   for (const style of ['sujian', 'deepspace', 'warmroom']) {
     assert.ok(s.includes(`data-ui-style', '${style}'`), `应设置 data-ui-style=${style}`);
   }
-  assert.ok(s.includes('THEME_PRESET_SUJIAN, THEME_PRESET_DEEPSPACE, THEME_PRESET_WARMROOM'), '离线 fallback 应含三新预设');
+  assert.ok(s.includes('themeColorsOf(id) ? { id, colors: themeColorsOf(id) } : null'), '离线 fallback 应查启动缓存（单源）');
 });
 
 // ── 4. CSS 形态段 ────────────────────────────────────────────────────────
