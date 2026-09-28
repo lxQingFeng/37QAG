@@ -37,14 +37,14 @@ function makeSkillTools(count, skillId) {
   }));
 }
 
-test('114 个 health-system 工具合并成一个 action+args 包装工具', () => {
-  const tools = makeSkillTools(114, 'health-system');
+test('114 个工具合并成一个 action+args 包装工具', () => {
+  const tools = makeSkillTools(114, 'tool-suite');
   const groups = groupSkillToolDefs(tools);
   assert.equal(groups.length, 1);
   assert.equal(groups[0].wrapped, true);
 
   const wrapped = buildWrappedSkillTool(groups[0]);
-  assert.equal(wrapped.name, 'use_health_system');
+  assert.equal(wrapped.name, 'use_tool_suite');
   assert.equal(wrapped.parameters.properties.action.enum.length, 114);
   assert.equal(wrapped.parameters.required[0], 'action');
 

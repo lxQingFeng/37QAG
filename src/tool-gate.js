@@ -47,7 +47,6 @@ const SIGNALS = Object.freeze([
   { re: /算[一下下个]|计算/, cats: ['ext-info'] },                             // calculator
   { re: /什么梗|啥梗|梗的?意思|梗百科|热梗/, cats: ['ext-info'] },              // knowledge-memes
   { re: /画[一张个幅点]|生成[一]?[张个幅]?[图张]|P[一张个图]|来一张图|整一张图/, cats: ['ext-fun'] }, // image-generate / random-image
-  { re: /猜[数字大小拳]个?|掷?骰子?|丢骰|抽[签卡]个?|来一把|玩一把|开一局/, cats: ['ext-fun'] },    // mini-games
   { re: /倒序|翻转[一]?[下个]?文[字本]|字数[统计有多少]|统计字数/, cats: ['ext-text'] }            // text-tools
 ]);
 

@@ -26,13 +26,6 @@ const PLUGINS = [
     settingsUi: 'settings-ui.js'
   },
   {
-    id: 'health-system',
-    dir: 'health-system',
-    entry: 'index.js',
-    version: '14.0.1',
-    hooks: ['before-context', 'before-llm-messages']
-  },
-  {
     id: 'sleep-mood',
     dir: 'sleep-mood',
     entry: 'index.js',
@@ -91,7 +84,7 @@ test('社区插件入口和宿主钩子兼容 37QAG', async () => {
   }
 
   for (const rel of ['lib/config.js', 'lib/mood-chain.js', 'lib/self-state.js']) {
-    assert.ok(fs.existsSync(pluginPath(PLUGINS[3], rel)), `sleep-mood 缺少 ${rel}`);
+    assert.ok(fs.existsSync(pluginPath(PLUGINS[2], rel)), `sleep-mood 缺少 ${rel}`);
   }
 });
 

@@ -38,7 +38,7 @@ const IGNORED_DIRS = new Set([
   'node_modules', '.git', '.svn', '.hg', 'data', 'command_data', 'logs', 'log',
   'cache', 'caches', 'temp', 'tmp', 'backup', 'backups'
 ]);
-const IGNORED_FILE_RE = /(?:^|[/\\])(?:health-data\.json|thumbs\.db|\.ds_store)$|(?:\.tmp|\.temp|\.bak|\.old|\.log|\.png|\.jpe?g|\.gif|\.webp|\.svg|\.mp3|\.wav|\.mp4|\.db|\.sqlite3?)$|[/\\](?:report-src-|health-report-)/i;
+const IGNORED_FILE_RE = /(?:^|[/\\])(?:thumbs\.db|\.ds_store)$|(?:\.tmp|\.temp|\.bak|\.old|\.log|\.png|\.jpe?g|\.gif|\.webp|\.svg|\.mp3|\.wav|\.mp4|\.db|\.sqlite3?)$/i;
 
 /** 运行时文件不参与热重载判断，避免插件写存档/日志又触发自己重载。 */
 export function isPluginWatchPath(rel = '') {

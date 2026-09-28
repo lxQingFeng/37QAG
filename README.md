@@ -382,7 +382,6 @@ npm test
 - 插件热重载路径和源码签名；
 - 人设、提示词压缩和角色工具同步；
 - 表情显示与私聊图片行为；
-- health-system 工具包装与状态迁移；
 - skill 工具压缩；
 - 技能门控路由（skill.json `gateCategory` 归一化、提示词段与工具同源注入、`jev2` 五分类判定与降级保底）；
 - 设置补齐键默认值一致性、api-news 配置读取与语音 tokens 透传回归；
@@ -438,7 +437,6 @@ npm test
 | `ban-state` | 禁言状态管理 |
 | `command-gateway` | 指令前置、权限、参数和插件兼容补丁 |
 | `conversation-memory` | 会话记忆、长期记忆、语义卡和待办 |
-| `health-system` | 拟人生存、健康、社交、宠物和生活状态 |
 | `image-compat` | 图片格式兼容和失败重试 |
 | `life-system` | 世界设定、日历、事件和近况 |
 | `media-download` | B 站 / 抖音媒体下载与转发 |
@@ -457,7 +455,6 @@ npm test
 - `image-generate`
 - `knowledge-memes`
 - `memory-recall`
-- `mini-games`
 - `random-image`
 - `reverse-image`
 - `sticker-annotate`
@@ -510,7 +507,7 @@ completed
 
 - 不提交真实 `data/config.json` 和 `data-2/config.json`；
 - 不提交 API Key、OneBot 访问令牌、Cookie、WebUI 密码或私钥；
-- 不提交聊天记录、记忆、人物印象、任务数据和健康数据；
+- 不提交聊天记录、记忆、人物印象和任务数据；
 - 不提交真实 QQ 号、联系人、群号和日志样本；
 - 源码注释中的账号、消息 ID、昵称和联系人示例已替换为占位值；
 - 示例配置只保留空值或安全占位；
@@ -645,7 +642,6 @@ server.port
 - [`docs/37QAG-community-plugins.md`](docs/37QAG-community-plugins.md)：插件安装、兼容适配和启用状态。
 - [`docs/37QAG-snowluma-1.14.19.md`](docs/37QAG-snowluma-1.14.19.md)：SnowLuma v1.14.19 接口适配和升级保护。
 - [`plugins/command-gateway/README.md`](plugins/command-gateway/README.md)：指令前置与插件钩子。
-- [`plugins/health-system/README.md`](plugins/health-system/README.md)：健康系统能力与工具。
 
 ---
 

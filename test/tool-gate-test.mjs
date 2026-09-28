@@ -137,9 +137,9 @@ test('配置默认：api.toolGate=rules / channel=cloud / 本地端点默认指�
 // ── jev 级联 PR1：技能路由规则层（categoryOf 扩展 / 技能信号词 / skillCats 过滤）──
 
 test('PR1·categoryOf：技能工具（含 use_xxx 包装）按 skillId 映射门控类别', () => {
-  const skillCats = { calculator: 'ext-info', 'mini-games': 'ext-fun', 'weather-query': 'ext-info' };
+  const skillCats = { calculator: 'ext-info', 'image-generate': 'ext-fun', 'weather-query': 'ext-info' };
   // use_xxx 包装工具（4+ 个工具的技能组聚合入口，skillId 在 def 上）
-  assert.equal(categoryOf('use_mini_games', { name: 'use_mini_games', skillId: 'mini-games' }, skillCats), 'ext-fun');
+  assert.equal(categoryOf('use_image_generate', { name: 'use_image_generate', skillId: 'image-generate' }, skillCats), 'ext-fun');
   // 技能单工具（不足包装阈值的技能直接平铺，同样带 skillId）
   assert.equal(categoryOf('calculate', { name: 'calculate', skillId: 'calculator' }, skillCats), 'ext-info');
   assert.equal(categoryOf('get_weather', { name: 'get_weather', skillId: 'weather-query' }, skillCats), 'ext-info');
@@ -147,7 +147,7 @@ test('PR1·categoryOf：技能工具（含 use_xxx 包装）按 skillId 映射�
   assert.equal(categoryOf('web_search', { name: 'web_search', skillId: 'calculator' }, skillCats), 'search');
   // 未标注 / 未在映射中的技能 → core 常驻（宁可多注入不可漏）
   assert.equal(categoryOf('use_unknown', { name: 'use_unknown', skillId: 'someone-else' }, skillCats), 'core');
-  assert.equal(categoryOf('use_x', { name: 'use_x', skillId: 'mini-games' }, null), 'core', '没传映射 → 全部常驻（旧行为）');
+  assert.equal(categoryOf('use_x', { name: 'use_x', skillId: 'image-generate' }, null), 'core', '没传映射 → 全部常驻（旧行为）');
   assert.equal(categoryOf('use_x', { name: 'use_x' }, skillCats), 'core', '没有 skillId 的 def 不受影响');
 });
 
@@ -155,31 +155,29 @@ test('PR1·filterToolDefs：skillCats 使技能工具参与门控（修复此前
   const defs = [
     { name: 'send_message' },
     { name: 'web_search' },
-    { name: 'use_mini_games', skillId: 'mini-games' },
+    { name: 'use_image_generate', skillId: 'image-generate' },
     { name: 'calculate', skillId: 'calculator' },
     { name: 'use_other', skillId: 'unmarked-skill' }
   ];
-  const skillCats = { 'mini-games': 'ext-fun', calculator: 'ext-info' };
+  const skillCats = { 'image-generate': 'ext-fun', calculator: 'ext-info' };
   // 纯闲聊：信息工具 + 已标注技能工具全砍；未标注技能保留
   const chat = filterToolDefs(defs, { need: 'none', cats: [] }, skillCats).map((d) => d.name);
   assert.deepEqual(chat.sort(), ['send_message', 'use_other'], '闲聊轮：砍已标注技能，留未标注技能（常驻兜底）');
   // 技能类别命中：对应技能工具保留
   const fun = filterToolDefs(defs, { need: 'cats', cats: ['ext-fun'] }, skillCats).map((d) => d.name);
-  assert.ok(fun.includes('use_mini_games'), 'ext-fun 轮应留 mini-games 工具');
+  assert.ok(fun.includes('use_image_generate'), 'ext-fun 轮应留 image-generate 工具');
   assert.ok(!fun.includes('calculate'), 'ext-info 未命中不应留 calculator');
   // 不传映射 → 技能工具全部常驻（向后兼容）
   const legacy = filterToolDefs(defs, { need: 'none', cats: [] }).map((d) => d.name);
-  assert.deepEqual(legacy.sort(), ['calculate', 'send_message', 'use_mini_games', 'use_other'], '不传 skillCats：技能工具全保留（PR1 前行为）');
+  assert.deepEqual(legacy.sort(), ['calculate', 'send_message', 'use_image_generate', 'use_other'], '不传 skillCats：技能工具全保留（PR1 前行为）');
 });
 
-test('PR1·信号词：算/画/天气/猜/梗 → ext-* 技能类别（与既有类别并集）', () => {
+test('PR1·信号词：算/画/天气/梗 → ext-* 技能类别（与既有类别并集）', () => {
   const cases = [
     ['帮我算一下 128 乘 46', 'ext-info'],
     ['明天上海天气怎么样', 'ext-info'],
     ['这是什么梗', 'ext-info'],
-    ['画一张猫猫表情包', 'ext-fun'],
-    ['来一把猜数字', 'ext-fun'],
-    ['掷骰子', 'ext-fun']
+    ['画一张猫猫表情包', 'ext-fun']
   ];
   for (const [text, cat] of cases) {
     const v = classifyToolNeed(text);

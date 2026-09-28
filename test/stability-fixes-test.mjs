@@ -35,18 +35,18 @@ import {
 
 test('插件热重载忽略运行数据、日志、媒体和备份', () => {
   const ignored = [
-    'health-system/health-data.json',
-    'health-system/data/state.json',
-    'health-system/logs/health.log',
-    'health-system/cache/frame.tmp',
-    'health-system/assets/sticker.png',
-    'health-system/health-report-123.png',
-    'health-system/index.js.bak',
+    'life-system/state.db',
+    'life-system/data/state.json',
+    'life-system/logs/run.log',
+    'life-system/cache/frame.tmp',
+    'life-system/assets/sticker.png',
+    'life-system/report-123.png',
+    'life-system/index.js.bak',
     'node_modules/pkg/index.js'
   ];
   for (const file of ignored) assert.equal(isPluginWatchPath(file), false, file);
-  assert.equal(isPluginWatchPath('health-system/index.js'), true);
-  assert.equal(isPluginWatchPath('health-system/skill.json'), true);
+  assert.equal(isPluginWatchPath('life-system/index.js'), true);
+  assert.equal(isPluginWatchPath('life-system/skill.json'), true);
 });
 
 test('插件源码签名不受运行数据影响，但会响应源码变化', () => {
@@ -58,7 +58,7 @@ test('插件源码签名不受运行数据影响，但会响应源码变化', ()
     const before = pluginSourceSignature([root]);
 
     fs.mkdirSync(path.join(plugin, 'data'), { recursive: true });
-    fs.writeFileSync(path.join(plugin, 'health-data.json'), '{"runs":2}');
+    fs.writeFileSync(path.join(plugin, 'state.db'), '{"runs":2}');
     fs.writeFileSync(path.join(plugin, 'data', 'state.json'), '{"runs":3}');
     fs.writeFileSync(path.join(plugin, 'debug.log'), 'changed\n');
     assert.equal(pluginSourceSignature([root]), before);
@@ -154,17 +154,6 @@ test('系统规则以角色卡为准，精简版不再塞入冲突腔调词', ()
   assert.match(full, /规则优先级·固定/);
   assert.match(full, /安全规则.*工具协议.*管理员设置的角色卡/s);
 });
-
-test('健康系统把状态迁移到插件数据目录，并保留旧文件兜底', () => {
-  const source = fs.readFileSync(
-    new URL('../plugins/health-system/index.js', import.meta.url),
-    'utf8'
-  );
-  assert.match(source, /storage = api\.storage\?\.writeJson \? api\.storage : null/);
-  assert.match(source, /storage\.writeJson\('health-data\.json', data\)/);
-  assert.match(source, /旧文件保留作备份/);
-});
-
 
 test('插件提示词逐字、逐行去重并限制总规模', () => {
   const sections = [
