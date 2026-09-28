@@ -81,6 +81,12 @@ function safePositiveLimit(raw, fallback) {
 /**
  * 为一次运行选择安全的工具调用。
  * 拒绝项必须由调用方补成 tool result，避免 assistant.tool_calls 悬空。
+ *
+ * ⚠️ 发送配额（totalSends / send_* 具名上限）2026-09-28 起改为**按真实成功发送计数**
+ * （noreply 三连诊断·缺陷2）：这里不再在「接受时」扣减——404 下载失败、网络错误、
+ * preview、guardAction 拒绝都曾经白烧额度，导致「越努力越沉默」。扣减与同轮批量
+ * 超发拦截都挪到了执行点（sendQuotaRejectReason / chargeSuccessfulSend）；
+ * 本函数保留的发送上限检查读的是执行点回填的真实计数（跨轮拦截）。
  */
 export function selectSafeToolCalls(toolCalls = [], state = {}, limits = {}) {
   const seen = state.seen instanceof Set ? state.seen : (state.seen = new Set());
@@ -114,13 +120,50 @@ export function selectSafeToolCalls(toolCalls = [], state = {}, limits = {}) {
     }
     seen.add(signature);
     state.runCount += 1;
-    if (name.startsWith('send_')) {
-      state.totalSends += 1;
-      state.sendsByName[name] = (Number(state.sendsByName[name]) || 0) + 1;
-    }
+    // 发送配额不在这里扣（见函数头注释）：执行成功才计数，失败/preview 退还给模型。
     accepted.push(call);
   }
   return { accepted, rejected };
+}
+
+/** send_image 等的 preview=true（只看不发）。解析失败按非预览处理（保守侧：会查会扣）。 */
+function isPreviewToolArgs(argsRaw = '{}') {
+  try {
+    const parsed = typeof argsRaw === 'string' ? JSON.parse(argsRaw) : argsRaw;
+    return parsed?.preview === true;
+  } catch { return false; }
+}
+
+/**
+ * 发送配额·执行点拦截（noreply 三连诊断·缺陷2 修复）。
+ * 选择层是「整批」放行的（本轮执行中的实时计数它看不见），同轮批量超发在这里拦；
+ * 返回 '' = 放行；非空 = 拒绝原因（照旧格式补成 tool result 给模型看）。
+ * preview=true 不查不占：预览有自己的独立次数闸（tools.js maxPreviewsPerRun）。
+ */
+export function sendQuotaRejectReason(state = {}, limits = {}, name = '', argsRaw = '{}') {
+  const n = String(name || '');
+  if (!n.startsWith('send_')) return '';
+  if (isPreviewToolArgs(argsRaw)) return '';
+  const totalSends = safePositiveLimit(limits.totalSends, 4);
+  if ((Number(state.totalSends) || 0) >= totalSends) {
+    return `本次运行发送动作已达上限（${totalSends} 次），不要再发送。`;
+  }
+  const namedLimit = Number(limits[n]);
+  if (Number.isFinite(namedLimit) && namedLimit >= 0) {
+    const used = Number(state.sendsByName?.[n]) || 0;
+    if (used >= safePositiveLimit(namedLimit, 1)) return `${n} 本次运行已达上限（${Math.floor(namedLimit)} 次）。`;
+  }
+  return '';
+}
+
+/**
+ * 一次**真实成功**的发送（执行返回非 error、非 preview）后扣减配额。
+ * guardAction 拒绝（deadline 等）与工具报错都不走到这里 → 失败重试天然获得额度。
+ */
+export function chargeSuccessfulSend(state = {}, name = '') {
+  state.totalSends = (Number(state.totalSends) || 0) + 1;
+  state.sendsByName = state.sendsByName && typeof state.sendsByName === 'object' ? state.sendsByName : {};
+  state.sendsByName[name] = (Number(state.sendsByName[name]) || 0) + 1;
 }
 
 async function executeToolGuarded(toolDefs, ctx, name, argsRaw) {
@@ -2326,6 +2369,18 @@ export class Orchestrator {
     };
     for (let round = 0; round < maxRounds && !finish; round++) {
       if (this.aborted) { this.sessions.finish(session.id, 'aborted'); return; }
+      // ── 缺陷3修复（noreply 三连诊断）：deadline 到点即收尾 ──
+      // runContext.guardAction 只拦「迟到的 send_」，主循环本身不受影响：实测会话 1
+      // 在 deadline 之后还空转了 5 轮（12 轮全程 0 发送，用户只能看到"正在思考…"）。
+      // 每轮先查剩余时间：≤0 就记 finishReason 并 break——已发出的消息不受影响。
+      if (runContext.remainingMs() <= 0) {
+        session.finishReason = `运行时间到（上限 ${Math.round((Number(cfg.api?.runDeadlineMs) || 120000) / 1000)} 秒），本轮到此收尾`;
+        session.activity = '运行超时，到点收尾…';
+        this.sessions.update(session.id);
+        this.emit('session-update', session.id);
+        console.log(`[orchestrator] ${chatKey} 运行超时（runDeadlineMs 到点），第 ${round + 1} 轮前收尾`);
+        break;
+      }
       // ── 退化断路器 ──
       // 弱模型可能连着多轮把同一句话越裹越长；只靠"工具返回报错"它是不收手的
       // （它接着换一种裹法继续发）。所以在**运行层**直接掐断：重复被拦到 3 条就结束这一轮，
@@ -2653,6 +2708,20 @@ export class Orchestrator {
         const argsRaw = call?.function?.arguments ?? '{}';
         if (name === 'web_search' || name === 'web_fetch') webSearchCount += 1;
         session.webSearchCount = webSearchCount;
+        // ── 发送配额·执行点拦截（缺陷2）：同轮批量超发在这里拦 ──
+        // 选择层整批放行时看不见执行中的实时计数；这里顺序执行、按真实成功扣减，
+        // 失败/preview/guardAction 拒绝不扣 → 模型修好 URL 重试天然还有额度。
+        const quotaReason = sendQuotaRejectReason(toolCallBudgetState, cfg.api?.toolLimits || {}, name, argsRaw);
+        if (quotaReason) {
+          const quotaResult = { role: 'tool', _id: call.id, name, content: quotaReason, isError: false };
+          toolResults.push(quotaResult);
+          acceptedToolResults.push(quotaResult);
+          session.messages.push({ toolCall: { name, args: safeParse(argsRaw), result: quotaReason, isError: false } });
+          this.sessions.update(session.id);
+          this.emit('session-update', session.id);
+          console.log(`[orchestrator] ${chatKey} 发送配额拦截：${name}（${quotaReason}）`);
+          continue;
+        }
         markActivity(`正在调用 ${name}…`);
         const blocked = await hookBeforeTool({
           toolName: name,
@@ -2684,6 +2753,12 @@ const result = await executeToolGuarded(toolDefs, ctx, name, argsRaw);
         trace(`tool ${name} done`);
         await hookAfterTool({ toolName: name, argsRaw, result, session });
         if (name === 'web_search' && !result.isError) searchedSuccessfully = true;
+        // ── 发送配额·执行点扣减（缺陷2）：只有真实成功（非 error、非 preview）才计数 ──
+        // 旧版在「接受时」就 +1，404/ECONNRESET/预览/超时拦截都白烧额度；三个
+        // noreply 会话里 4 次配额全是这么被烧光的（诊断报告缺陷2）。
+        if (name.startsWith('send_') && !result.isError && !isPreviewToolArgs(argsRaw)) {
+          chargeSuccessfulSend(toolCallBudgetState, name);
+        }
         // 工具结果：文本走 tool 消息；图片（parts 数组）不能塞进 tool 消息——
         // 很多 OpenAI 兼容端点不接受。做法：tool 消息只带文本，图片随后以 user 消息补发
         // （[{type:'text'},{type:'image_url'}]），这是兼容面最广的视觉输入方式。

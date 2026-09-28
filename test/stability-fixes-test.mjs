@@ -28,8 +28,10 @@ import { DEFAULT_CONFIG } from '../src/config.js';
 import { localReplyPolicy } from '../src/local-reply-policy.js';
 import { resolveOutputMaxTokens } from '../src/llm.js';
 import {
+  chargeSuccessfulSend,
   filteredToolResult,
   selectSafeToolCalls,
+  sendQuotaRejectReason,
   toolCallSignature
 } from '../src/orchestrator.js';
 
@@ -254,7 +256,7 @@ test('历史只折叠连续同人的纯文本重复，富消息保持原样', ()
   assert.equal(collapsed[2].senderId, '1002');
 });
 
-test('工具调用按规范化参数去重，并限制每轮、每运行和发送次数', () => {
+test('工具调用按规范化参数去重，并限制每轮和每运行次数；发送配额不再在接受时扣减', () => {
   assert.equal(
     toolCallSignature('web_search', '{"q":"热梗","limit":3}'),
     toolCallSignature('web_search', '{ "limit": 3, "q": "热梗" }')
@@ -276,11 +278,28 @@ test('工具调用按规范化参数去重，并限制每轮、每运行和发�
     call('i1', 'send_image', { url: 'https://example.test/a.jpg' }),
     call('i2', 'send_image', { url: 'https://example.test/b.jpg' })
   ];
+  // 2026-09-28（noreply 三连诊断·缺陷2）：发送配额改按「真实成功发送」计数，
+  // selectSafeToolCalls 不再在「接受时」+1——失败/preview 不烧额度，扣减与同轮
+  // 超发拦截都在执行点（见下个测试）。此时 totalSends 仍为 0，
+  // 7 个 send 只会被 perRun（runCount 已 8 → 12 截断）挡住 3 个。
   const second = selectSafeToolCalls(sends, roundState, {
     perRound: 8, perRun: 12, totalSends: 4, send_message: 2, send_sticker: 1
   });
-  assert.deepEqual(second.accepted.map((x) => x.id), ['m1', 'm2', 'e1', 'i1']);
-  assert.deepEqual(second.rejected.map((x) => x.id), ['m3', 'e2', 'i2']);
+  assert.deepEqual(second.accepted.map((x) => x.id), ['m1', 'm2', 'm3', 'e1']);
+  assert.deepEqual(second.rejected.map((x) => x.id), ['e2', 'i1', 'i2']);
+  assert.ok(second.rejected.every((x) => /运行工具动作已达上限/.test(x.reason)), '只剩 perRun 在拦');
+  // 选择层不扣减：totalSends / sendsByName 保持 0（由执行点回填）。
+  assert.equal(roundState.totalSends, 0);
+  assert.deepEqual(roundState.sendsByName, {});
+
+  // 执行点回填（真实成功）后：跨轮的选择层检查仍生效（读的是真实计数）。
+  chargeSuccessfulSend(roundState, 'send_message');
+  chargeSuccessfulSend(roundState, 'send_message');
+  const third = selectSafeToolCalls([call('m4', 'send_message', { messages: '四' })], roundState, {
+    perRound: 8, perRun: 24, totalSends: 4, send_message: 2, send_sticker: 1
+  });
+  assert.deepEqual(third.accepted.map((x) => x.id), []);
+  assert.match(third.rejected[0].reason, /send_message 本次运行已达上限/);
   for (const skipped of second.rejected) {
     const result = filteredToolResult(skipped.call, skipped.reason);
     assert.equal(result.role, 'tool');
@@ -295,6 +314,56 @@ test('工具调用按规范化参数去重，并限制每轮、每运行和发�
   ], duplicateState, {});
   assert.equal(duplicate.accepted.length, 1);
   assert.equal(duplicate.rejected.length, 1);
+});
+
+test('发送配额按真实成功发送计数：失败/preview 不占额度，同轮批量超发在执行点拦截（缺陷2）', () => {
+  const call = (id, name, args) => ({ id, function: { name, arguments: JSON.stringify(args) } });
+  const limits = { perRound: 8, perRun: 24, totalSends: 4, send_image: 2 };
+
+  // ① preview=true：不查不占（预览有自己的 maxPreviewsPerRun 闸）。
+  const prev = sendQuotaRejectReason({ totalSends: 4, sendsByName: { send_image: 2 } }, limits,
+    'send_image', JSON.stringify({ url: 'https://example.test/x.jpg', preview: true }));
+  assert.equal(prev, '', '已满配额时 preview 仍放行');
+
+  // ② 真实发送：满配额 → 拒，文案沿用旧格式（模型侧零变化）。
+  const full = sendQuotaRejectReason({ totalSends: 4, sendsByName: {} }, limits,
+    'send_image', JSON.stringify({ url: 'https://example.test/x.jpg' }));
+  assert.match(full, /本次运行发送动作已达上限（4 次）/);
+  const named = sendQuotaRejectReason({ totalSends: 1, sendsByName: { send_image: 2 } }, limits,
+    'send_image', JSON.stringify({ url: 'https://example.test/x.jpg' }));
+  assert.match(named, /send_image 本次运行已达上限（2 次）/);
+
+  // ③ 失败重试天然获得额度：404 失败的调用不扣（执行返回 isError → 编排器不 charge）。
+  const state = { seen: new Set(), runCount: 0, totalSends: 0, sendsByName: {} };
+  for (let i = 0; i < 3; i++) {
+    assert.equal(sendQuotaRejectReason(state, limits, 'send_image', '{}'), '', `第 ${i + 1} 次失败后重试应放行`);
+  }
+  chargeSuccessfulSend(state, 'send_image');          // 第 4 次尝试成功才扣第 1 个额度
+  assert.equal(state.totalSends, 1);
+  assert.equal(state.sendsByName.send_image, 1);
+
+  // ④ 同轮批量超发：选择层整批放行，执行点逐个拦（used=1 + 具名上限 2 → 只能再发 1 张）。
+  const burst = [
+    call('b1', 'send_image', { url: 'https://example.test/1.jpg' }),
+    call('b2', 'send_image', { url: 'https://example.test/2.jpg' }),
+    call('b3', 'send_image', { url: 'https://example.test/3.jpg' })
+  ];
+  const picked = selectSafeToolCalls(burst, state, limits);
+  assert.equal(picked.accepted.length, 3, '选择层只看已回填的真实计数，整批放行');
+  const rejectedInLoop = [];
+  for (const c of picked.accepted) {
+    const reason = sendQuotaRejectReason(state, limits, c.function.name, c.function.arguments);
+    if (reason) { rejectedInLoop.push({ id: c.id, reason }); continue; }
+    chargeSuccessfulSend(state, c.function.name);            // 模拟执行成功
+  }
+  assert.deepEqual(rejectedInLoop.map((x) => x.id), ['b2', 'b3']);
+  assert.match(rejectedInLoop[0].reason, /send_image 本次运行已达上限（2 次）/);
+  assert.equal(state.sendsByName.send_image, 2, 'b1 占最后一个额度，b2/b3 被拦不占');
+
+  // ⑤ 非发送工具不查；参数解析失败按非预览处理（保守侧：会查）。
+  assert.equal(sendQuotaRejectReason(state, limits, 'web_search', '{}'), '');
+  assert.equal(sendQuotaRejectReason({ totalSends: 4 }, limits, 'send_image', 'not-json'),
+    '本次运行发送动作已达上限（4 次），不要再发送。');
 });
 
 test('模型输出预算为空时回落到 4096，小预算仍可保留', () => {
