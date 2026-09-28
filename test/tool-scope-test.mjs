@@ -269,3 +269,61 @@ test('三档闸迁移：旧默认 8000/6000/12000 跟随新默认，用户自定
   assert.equal(cfg.api.toolResultBudgetChars, 9000, '自定义值不应被迁移改写');
   assert.equal(cfg.webSearch.fetchMaxChars, 6000, '自定义值不应被迁移改写');
 });
+
+// ── 工具提示语 gate-aware（2026-09-28 · noreply 三连诊断·缺陷4 纠偏）──
+// 三连 noreply 实况：search_images/web_fetch 被门控裁掉后，工具报错/无命中文案
+// 仍在引导模型去用这些不存在的工具 → 模型对着空图库编 URL、反复撞 404。
+// 修复：orchestrator 把门控后的 availableTools 注入 ctx，文案按它自适应。
+
+test('image_lib_search 空库无命中：search_images 被裁时不再推荐它（缺陷4）', async () => {
+  const defs = buildToolDefs();
+  // 图库为空（tmp 数据目录）→ 必走无命中分支
+  const base = { chatKey: 'group:100', kind: 'group', chatId: 100, session: { id: 's-gate-1' } };
+  // ① ctx 未带 availableTools（旧调用方/未门控）→ 保守沿用旧文案
+  const legacy = await executeTool(defs, base, 'image_lib_search', { query: '菲比' });
+  assert.match(legacy.content, /search_images/);
+  // ② 本轮工具集里没有 search_images（被门控裁掉）→ 引导直接文字收尾
+  const gated = await executeTool(defs, { ...base, availableTools: new Set(['send_message', 'image_lib_search']) },
+    'image_lib_search', { query: '菲比' });
+  assert.doesNotMatch(gated.content, /search_images/, '被裁的工具不应再出现在提示里');
+  assert.match(gated.content, /本轮没有联网搜图工具/);
+  assert.match(gated.content, /send_message/);
+  // ③ search_images 在本轮工具集里 → 旧文案
+  const full = await executeTool(defs, { ...base, availableTools: new Set(['send_message', 'search_images', 'image_lib_search']) },
+    'image_lib_search', { query: '菲比' });
+  assert.match(full.content, /search_images/);
+});
+
+test('send_image 404 提示：web_fetch 被裁时不再引导复制其 images（缺陷4）', async () => {
+  const server = http.createServer((req, res) => { res.writeHead(404, { 'content-type': 'text/plain' }); res.end('not found'); });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const port = server.address().port;
+  try {
+    updateConfig({
+      security: {
+        allowPrivateFetchHosts: true,
+        allowPrivateImageHosts: true,
+        browseLock: { enabled: false, domains: [], searchUrl: '' },
+        imageSend: { enabled: true, requirePreview: false, maxPerRun: 2, maxPreviewsPerRun: 3 }
+      }
+    });
+    const defs = buildToolDefs();
+    const url = `http://127.0.0.1:${port}/gone.jpg`;
+    const base = { chatKey: 'group:100', kind: 'group', chatId: 100,
+      session: { id: 's-gate-2', sent: [], imagePreviewed: [] }, emit() {} };
+    // ① web_fetch 不可见：不再提「从 web_fetch 返回的 images 里复制」
+    const gated = await executeTool(defs, { ...base, availableTools: new Set(['send_message', 'send_image']) },
+      'send_image', { url });
+    assert.equal(gated.isError, true);
+    assert.match(gated.content, /图片下载失败/);
+    assert.doesNotMatch(gated.content, /web_fetch/, '被裁的工具不应再被引导');
+    assert.match(gated.content, /别再重试这个地址/);
+    // ② web_fetch 可见：沿用旧提示（教它原样复制 images 里的直链）
+    const legacy = await executeTool(defs, { ...base, availableTools: new Set(['send_message', 'send_image', 'web_fetch']) },
+      'send_image', { url });
+    assert.equal(legacy.isError, true);
+    assert.match(legacy.content, /web_fetch/);
+  } finally {
+    server.close();
+  }
+});

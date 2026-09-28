@@ -2338,6 +2338,10 @@ export class Orchestrator {
       participationRoute,
       emit: (type, payload) => this.emit(type, payload),
       guardAction: (actionId) => runContext.guardAction(actionId),
+      // 本轮门控后模型实际可见的工具名（缺陷4纠偏）：工具提示语按它自适应——
+      // 不再引导模型去调用被裁掉的工具（如 web_fetch 被裁时还教它复制 images）。
+      // toolGate='off'/亢奋轮时 = 全量，语义不变。
+      availableTools: new Set(gatedToolDefs.map((d) => String(d?.name || ''))),
       // 记忆检索预算：搜不到就停，防狂搜（0 = 不限）
       memorySearchBudget: (() => {
         const raw = Number(cfg.api?.conversationMemory?.maxSearchPerRun);

@@ -866,6 +866,17 @@ function hasTool(name) {
 }
 
 /**
+ * 本轮（工具门控后）模型实际可见的工具里有没有 name（缺陷4纠偏，2026-09-28）。
+ * ctx.availableTools 由 orchestrator 按 gatedToolDefs 注入：Set → 按它判断；
+ * 未注入（旧调用方/单元测试）→ 保守按「可见」返回 true，沿用旧文案。
+ */
+function toolVisibleThisRound(ctx, name) {
+  const set = ctx?.availableTools;
+  if (set instanceof Set) return set.has(name);
+  return true;
+}
+
+/**
  * send_message 的 messages 参数 schema。
  *
  * ⚠️ 对本地小模型只给**数组**一种写法（api.sendMessagesArrayOnly）：
@@ -1295,7 +1306,10 @@ export function buildToolDefs() {
           if (opt.enabled === false) return err('发图功能已在设置里关闭（设置 → 聊天设置 → 发图）。');
           const url = String(args.url ?? '').trim();
           if (!/^https?:\/\//i.test(url)) {
-            return err('url 必须是 http(s) 图片直链。手上若是网页地址，先用 web_fetch 抓那页，再从返回的 images 里挑直链。');
+            // 缺陷4纠偏：web_fetch 被门控裁掉时不再引导模型去用它（会话 2 反复撞墙的原因之一）
+            return err(toolVisibleThisRound(ctx, 'web_fetch')
+              ? 'url 必须是 http(s) 图片直链。手上若是网页地址，先用 web_fetch 抓那页，再从返回的 images 里挑直链。'
+              : 'url 必须是 http(s) 图片直链。本轮没有网页抓取工具，无法从网页里找直链：请改用文字回复，或换一条真实的图片直链。');
           }
           const isPreview = args.preview === true;
           if (!Array.isArray(ctx.session.imagePreviewed)) ctx.session.imagePreviewed = [];
@@ -1329,9 +1343,12 @@ export function buildToolDefs() {
           } catch (error) {
             const msg = String(error?.message ?? error);
             // 404 多半是模型抄 URL 时手抖（实测把 /2026/04/xx.jpg 抄成 /2026-04-xx.jpg），
-            // 顺手提醒它原样复制，别自己"修正"路径。
+            // 顺手提醒它原样复制，别自己"修正"路径。web_fetch 被裁时换路：别再让它
+            // 去「复制 web_fetch 的 images」（缺陷4纠偏，会话 2 反复撞墙的原因之一）。
             const hint = /HTTP 404/.test(msg)
-              ? '（地址可能抄错了：请从 web_fetch 返回的 images 里原样复制，别改动路径字符；也可能是图已删除）'
+              ? (toolVisibleThisRound(ctx, 'web_fetch')
+                ? '（地址可能抄错了：请从 web_fetch 返回的 images 里原样复制，别改动路径字符；也可能是图已删除）'
+                : '（这个地址取不到图：可能是编造/已删除的链接。别再重试这个地址，也别编新的；请改用文字回复，或本轮可见的搜索工具另找直链。）')
               : '';
             return err(`图片下载失败：${msg}${hint}`);
           }
@@ -1341,7 +1358,9 @@ export function buildToolDefs() {
           if (!mime) {
             const head = buffer.subarray(0, 200).toString('utf8').trim().toLowerCase();
             if (head.startsWith('<!doctype html') || head.startsWith('<html')) {
-              return err('这个地址返回的是网页（HTML），不是图片直链。先用 web_fetch 抓那页，再从它返回的 images 里挑一条直链。');
+              return err(toolVisibleThisRound(ctx, 'web_fetch')
+                ? '这个地址返回的是网页（HTML），不是图片直链。先用 web_fetch 抓那页，再从它返回的 images 里挑一条直链。'
+                : '这个地址返回的是网页（HTML），不是图片直链。本轮没有网页抓取工具，无法解析网页找直链：请改用文字回复，不要再试这个地址。');
             }
             return err(`这个地址返回的不是图片（Content-Type: ${contentType || '未知'}）。只支持 png/jpg/gif/webp 直链。`);
           }
@@ -2228,7 +2247,11 @@ export function buildToolDefs() {
             limit: Math.min(20, Math.max(1, Number(args.limit) || 6))
           });
           if (!hits.length) {
-            return { content: `图库无命中（共${imageLibCount()}张）。可换词，或用 search_images 搜网图。` };
+            // 缺陷4纠偏（2026-09-28）：本轮 search_images 被门控裁掉时，别再推荐
+            // 一个模型用不了的工具（三连 noreply 里它因此对着空图库编 URL）。
+            return { content: toolVisibleThisRound(ctx, 'search_images')
+              ? `图库无命中（共${imageLibCount()}张）。可换词，或用 search_images 搜网图。`
+              : `图库无命中（共${imageLibCount()}张）。本轮没有联网搜图工具：请直接用 send_message 告诉用户这张图暂时发不了（别编造图片链接、别反复换词搜库）。` };
           }
           return ok({ images: hits, total: imageLibCount() });
         } catch (error) {
