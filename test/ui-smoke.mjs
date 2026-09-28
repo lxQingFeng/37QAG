@@ -80,13 +80,13 @@ before(async () => {
   try { pw = await import('playwright'); } catch {
     throw new Error('playwright 未安装：npm i -g playwright && npx playwright install chromium');
   }
-  // 隔离数据目录 + 指定端口启动控制台
+  // 隔离数据目录、禁用本地 Jev + 指定端口启动控制台
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'qag-ui-smoke-'));
   prefsExisted = fs.existsSync(PREFS_FILE);
   if (prefsExisted) fs.copyFileSync(PREFS_FILE, PREFS_BACKUP);
   server = spawn(process.execPath, ['src/server.js'], {
     cwd: ROOT,
-    env: { ...process.env, QAG_DATA_HOME: dataDir, QQ_AGENT_PORT: String(PORT), QQ_AGENT_NO_PEER: '1' },
+    env: { ...process.env, QAG_DATA_HOME: dataDir, QQ_AGENT_PORT: String(PORT), QQ_AGENT_NO_PEER: '1', QQ_AGENT_DISABLE_LOCAL_JEV: '1' },
     stdio: ['ignore', 'pipe', 'pipe']
   });
   serverExit = new Promise((r) => server.on('exit', r));
