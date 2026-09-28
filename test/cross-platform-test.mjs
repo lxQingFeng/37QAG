@@ -2,7 +2,7 @@
 // 1) start.mjs 参数分支与启动日志路径（源码断言）；
 // 2) local-jev 平台默认二进制名（win: .exe / posix: 无后缀）；
 // 3) command-gateway 补丁引擎 builtin 检测（0.6.0+ 核心全部原生内置 → 无需打补丁）；
-// 4) openPath/openInBrowser 在当前平台返回布尔且不抛错；
+// 4) openPath/openInBrowser 的跨平台命令可注入验证，测试绝不真正启动文件管理器或浏览器；
 // 5) Linux 启动脚本存在且可执行。
 import { test } from 'node:test';
 import assert from 'node:assert';
@@ -44,12 +44,30 @@ test('command-gateway patch.mjs：0.6.0 核心全部 builtin（无需打补丁�
   }
 });
 
-test('openPath/openInBrowser：跨平台布尔返回、不抛错', async () => {
+test('openPath/openInBrowser：跨平台命令正确且测试不触发系统打开', async () => {
   const { openPath, openInBrowser } = await import('../src/util.js');
-  assert.equal(typeof openPath('/tmp'), 'boolean');
-  assert.equal(typeof openInBrowser('http://127.0.0.1:1'), 'boolean');
-});
+  const calls = [];
+  const spawnImpl = (cmd, args, options) => {
+    calls.push({ cmd, args, options });
+    return { on() {}, unref() {} };
+  };
 
+  assert.equal(openPath('/tmp', { spawnImpl }), true);
+  assert.equal(openInBrowser('http://127.0.0.1:1', { spawnImpl }), true);
+
+  const pathCmd = process.platform === 'win32' ? 'explorer.exe' : process.platform === 'darwin' ? 'open' : 'xdg-open';
+  const browserCmd = process.platform === 'win32' ? 'cmd.exe' : process.platform === 'darwin' ? 'open' : 'xdg-open';
+  const browserArgs = process.platform === 'win32'
+    ? ['/c', 'start', '', 'http://127.0.0.1:1']
+    : ['http://127.0.0.1:1'];
+
+  assert.deepEqual(calls.map(({ cmd, args }) => ({ cmd, args })), [
+    { cmd: pathCmd, args: ['/tmp'] },
+    { cmd: browserCmd, args: browserArgs }
+  ]);
+  assert.ok(calls.every(({ options }) => options.detached === true && options.stdio === 'ignore'));
+  assert.equal(openPath('/tmp', { spawnImpl: () => { throw new Error('mock'); } }), false);
+});
 test('Linux 启动脚本存在且可执行', () => {
   for (const name of ['启动-单号.sh', '启动-双号.sh', '启动-单号-调试模式.sh']) {
     const p = path.join(ROOT, name);

@@ -456,24 +456,25 @@ export function sweepStaleTmp(dir, { maxDepth = 2 } = {}) {
  * 跨平台 spawn 助手：命令不存在（ENOENT）等启动期错误挂到 child 的 error 事件上吞掉，
  * 不让它变成 uncaughtException 打崩主进程（无桌面环境的服务器上常见 xdg-open 缺失）。
  */
-function spawnDetachedSafe(cmd, args) {
+function spawnDetachedSafe(cmd, args, options = {}) {
+  const spawnImpl = options.spawnImpl || spawn;
   try {
-    const child = spawn(cmd, args, { detached: true, stdio: 'ignore' });
-    child.on('error', () => { /* 命令缺失/权限问题：静默 */ });
-    child.unref();
+    const child = spawnImpl(cmd, args, { detached: true, stdio: 'ignore' });
+    child?.on?.('error', () => { /* 命令缺失/权限问题：静默 */ });
+    child?.unref?.();
     return true;
   } catch { return false; }
 }
 
-export function openPath(target) {
-  if (process.platform === 'win32') return spawnDetachedSafe('explorer.exe', [String(target)]);
-  if (process.platform === 'darwin') return spawnDetachedSafe('open', [String(target)]);
-  return spawnDetachedSafe('xdg-open', [String(target)]);
+export function openPath(target, options = {}) {
+  if (process.platform === 'win32') return spawnDetachedSafe('explorer.exe', [String(target)], options);
+  if (process.platform === 'darwin') return spawnDetachedSafe('open', [String(target)], options);
+  return spawnDetachedSafe('xdg-open', [String(target)], options);
 }
 
 /** 用系统默认浏览器打开 URL（Windows 走 cmd start，与桌面版行为一致）。 */
-export function openInBrowser(url) {
-  if (process.platform === 'win32') return spawnDetachedSafe('cmd.exe', ['/c', 'start', '', String(url)]);
-  if (process.platform === 'darwin') return spawnDetachedSafe('open', [String(url)]);
-  return spawnDetachedSafe('xdg-open', [String(url)]);
+export function openInBrowser(url, options = {}) {
+  if (process.platform === 'win32') return spawnDetachedSafe('cmd.exe', ['/c', 'start', '', String(url)], options);
+  if (process.platform === 'darwin') return spawnDetachedSafe('open', [String(url)], options);
+  return spawnDetachedSafe('xdg-open', [String(url)], options);
 }
