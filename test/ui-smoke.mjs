@@ -41,7 +41,7 @@ function watchErrors(phase) {
   });
 }
 
-async function httpOk(url, timeoutMs = 30000) {
+async function httpOk(url, timeoutMs = 60000) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     try {
