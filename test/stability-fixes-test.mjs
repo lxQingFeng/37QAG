@@ -389,6 +389,25 @@ test('只读迷航断路器已播种默认配置（api.readOnlyNudgeRounds = 5�
   assert.equal(DEFAULT_CONFIG.api.readOnlyNudgeRounds, 5);
 });
 
+test('知识库死键接线：internal/images 开关真正控制各自链路（2026-09-28）', () => {
+  // 死键修复（知识库三件套核实报告 §2）：knowledge.internal.enabled /
+  // knowledge.images.enabled 原先无任何代码读取（UI 能写、后端不读）。
+  // 现在三条自动联想链已接线：默认 true 不改行为，关掉即停。
+  // 行为级链路（开关 → /api/config 落盘）由 UI 冒烟第 7 项覆盖；这里按仓库
+  // 先例读源码锚定接线存在 + 默认值保持现行为。
+  const src = fs.readFileSync(new URL('../src/orchestrator.js', import.meta.url), 'utf8');
+  // ① 脑内闪过（internal）：与既有真开关 api.memeAutoCue 串联
+  const memeGate = src.indexOf('cfg.api?.memeAutoCue !== false');
+  assert.ok(memeGate > 0, 'memeAutoCue 门应存在');
+  assert.match(src.slice(memeGate, memeGate + 300), /knowledge\?\.internal\?\.enabled !== false/,
+    'internal.enabled 应接入脑内闪过门');
+  // ② 形象图自动提示（images）：两处（cueImageLib 预判 + 提示词注入）都与 autoCueSelf 串联
+  const spots = [...src.matchAll(/knowledge\?\.images\?\.enabled !== false/g)];
+  assert.ok(spots.length >= 2, `images.enabled 至少接入两处（实际 ${spots.length}）`);
+  assert.equal(DEFAULT_CONFIG.knowledge.internal.enabled, true, 'internal 默认 true 保持现行为');
+  assert.equal(DEFAULT_CONFIG.knowledge.images.enabled, true, 'images 默认 true 保持现行为');
+});
+
 test('模型输出预算为空时回落到 4096，小预算仍可保留', () => {
   assert.equal(resolveOutputMaxTokens(0), 4096);
   assert.equal(resolveOutputMaxTokens(''), 4096);

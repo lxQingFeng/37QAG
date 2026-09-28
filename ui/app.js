@@ -4320,6 +4320,11 @@ async function loadMemesView() {
         <button class="btn btn-small" id="meme-import-btn" title="一次粘贴多条（内容 / 分类 | 内容 / 分类 | 内容 | 备注，也吃导出的 JSON）">⚡ 批量导入</button>
         <button class="btn btn-small" id="meme-export-btn" title="导出成 JSON（备份 / 换机器用）">导出</button>
       </div>
+      <div class="kb-gates" style="display:flex;gap:18px;flex-wrap:wrap;align-items:center;margin:0 0 8px">
+        <div class="checkbox-row" style="margin:0"><input type="checkbox" id="kb-internal-on" /><label for="kb-internal-on">脑内闪过（内部梗自动联想）</label></div>
+        <div class="checkbox-row" style="margin:0"><input type="checkbox" id="kb-images-on" /><label for="kb-images-on">形象图自动提示（问到长什么样时）</label></div>
+        <span id="kb-gates-hint" class="muted" style="font-size:11px"></span>
+      </div>
       <div id="kb-cats" class="kb-cats"></div>
       <div id="meme-list" class="kb-section"></div>
       <div id="kb-external" class="kb-section"></div>
@@ -4331,6 +4336,28 @@ async function loadMemesView() {
   const countEl = box.querySelector('#meme-count');
   const qEl = box.querySelector('#meme-q');
   const catsEl = box.querySelector('#kb-cats');
+
+  // ── 知识库总开关（死键接线修复，2026-09-28）──
+  // knowledge.internal.enabled / knowledge.images.enabled 原先是死键（设置页能写、
+  // 后端不读）；现已接线（脑内闪过 / 形象图自动提示两条自动联想链），开关真正生效。
+  try {
+    const kbCfg = await api('/api/config');
+    const internalEl = box.querySelector('#kb-internal-on');
+    const imagesEl = box.querySelector('#kb-images-on');
+    if (internalEl) internalEl.checked = kbCfg?.knowledge?.internal?.enabled !== false;
+    if (imagesEl) imagesEl.checked = kbCfg?.knowledge?.images?.enabled !== false;
+    const saveGate = async (key, on) => {
+      const hint = box.querySelector('#kb-gates-hint');
+      try {
+        await api('/api/config', { method: 'POST', body: JSON.stringify({ knowledge: { [key]: { enabled: on } } }) });
+        if (hint) { hint.textContent = '已保存（下轮会话生效）'; setTimeout(() => { hint.textContent = ''; }, 2500); }
+      } catch (e) {
+        if (hint) hint.textContent = `保存失败：${e?.message || e}`;
+      }
+    };
+    internalEl?.addEventListener('change', () => saveGate('internal', internalEl.checked));
+    imagesEl?.addEventListener('change', () => saveGate('images', imagesEl.checked));
+  } catch { /* 配置读不到时开关维持默认勾选，不阻塞页面 */ }
 
   function renderCats(cats) {
     catsEl.innerHTML = cats.map((c) => {

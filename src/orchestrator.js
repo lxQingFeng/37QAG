@@ -1710,7 +1710,10 @@ export class Orchestrator {
     });
     let memoryRecallWant = memoryRecallDecision.active;
     let cueImageLib = false;
-    const imageLibAllowed = cfg.knowledge?.images?.autoCueSelf !== false
+    // knowledge.images.enabled 原先是死键（知识库核实报告 2026-09-28）——现在接线：
+    // 与既有真开关 autoCueSelf 串联（任一关即关），UI 知识库页开关真正生效。
+    const imageLibAllowed = cfg.knowledge?.images?.enabled !== false
+      && cfg.knowledge?.images?.autoCueSelf !== false
       && (!memWl || memWl.has('image_lib_search') || memWl.has('image_lib_send'));
     if (imageLibAllowed) cueImageLib = shouldCueImageLib(triggerJoined);
     let imageWantsWant = wantsImage(triggerJoined);
@@ -1932,7 +1935,10 @@ export class Orchestrator {
     // 场合判据就是既有的词表（looksMemeCue/looksPlayfulCue，本来用于校验模型标的接梗/玩闹），
     // 免费、同步、零延迟。接上之后时机对齐率 28% → 100%，闪梗轮次反而略降（193 → ≈153）。
     if (
+      // api.memeAutoCue 是既有真开关；knowledge.internal.enabled 原先是死键
+      //（知识库核实报告 2026-09-28）——现在接线：UI 知识库页的总开关真正生效。
       cfg.api?.memeAutoCue !== false
+      && cfg.knowledge?.internal?.enabled !== false
       && (!memWl || memWl.has('memory_meme_search') || memWl.has('memory_meme_save'))
     ) {
       try {
@@ -2062,7 +2068,8 @@ export class Orchestrator {
     }
 
     // 图库：问自己长什么样 → 提示 image_lib_search(self)
-    if (cfg.knowledge?.images?.autoCueSelf !== false && (!memWl || memWl.has('image_lib_search') || memWl.has('image_lib_send'))) {
+    // 同上：knowledge.images.enabled 与 autoCueSelf 串联（接线见上 imageLibAllowed 注释）。
+    if (cfg.knowledge?.images?.enabled !== false && cfg.knowledge?.images?.autoCueSelf !== false && (!memWl || memWl.has('image_lib_search') || memWl.has('image_lib_send'))) {
       try {
         if (cueImageLib) {
           const hits = searchImageLib('形象 自拍', { category: 'self', limit: 2 });
