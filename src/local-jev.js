@@ -1249,7 +1249,9 @@ export const JEV_GATE_SPECS = {
     ],
     // label → verdict cats（与 tool-gate.js 的类别目录同源）。
     // 「技」= 三个 ext 类全开（宁多勿少：技能类别错分方向是多带，无功能损失）。
-    map: { '查': ['search'], '图': ['media'], '忆': ['memory'], '技': ['ext-info', 'ext-fun', 'ext-text'], '闲': [] },
+    // 「图」2026-09-28 补 search（noreply 三连诊断·缺陷4）：「要图」多数要搜网图，
+    // 本地 media 类满足不了"搜新的"——与 tool-gate.js SKILL_ROUTE_LABEL_CATS 同步。
+    map: { '查': ['search'], '图': ['media', 'search'], '忆': ['memory'], '技': ['ext-info', 'ext-fun', 'ext-text'], '闲': [] },
     positive: null
   },
   // ── 连发合并（自适应防抖）：「他这句说完了没有」────────────────────────

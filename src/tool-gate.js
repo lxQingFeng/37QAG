@@ -181,7 +181,10 @@ export const TOOL_GATE_JEV_SPEC = Object.freeze({
 export const SKILL_ROUTE_LABEL_CATS = Object.freeze({
   '闲': Object.freeze([]),
   '查': Object.freeze(['search']),
-  '图': Object.freeze(['media']),
+  // 2026-09-28（缺陷4修复）：「图」补 search——"要图"绝大多数场景要搜网图（三连
+  // noreply 里模型被裁到只剩空图库，只能对着编 URL）。本地 media 类（看已有图）
+  // 满足不了"搜新的"；search_images/web_fetch 归 search 类，一并放行。
+  '图': Object.freeze(['media', 'search']),
   '忆': Object.freeze(['memory']),
   '技': Object.freeze(['ext-info', 'ext-fun', 'ext-text'])
 });

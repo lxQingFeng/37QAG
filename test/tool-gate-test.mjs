@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert';
 
 const gate = await import('../src/tool-gate.js');
-const { classifyToolNeed, filterToolDefs, truncateToolResult, toolResultBudgetLeft, categoryOf, TOOL_CATEGORIES, TOOL_GATE_JEV_SPEC } = gate;
+const { classifyToolNeed, filterToolDefs, truncateToolResult, toolResultBudgetLeft, categoryOf, skillRouteVerdict, TOOL_CATEGORIES, TOOL_GATE_JEV_SPEC } = gate;
 
 const DEFS = [
   { name: 'send_message' },
@@ -100,6 +100,16 @@ test('过滤：cats=search 只开联网类', () => {
   assert.ok(!names.includes('memory_query'));
   assert.ok(!names.includes('identify_image'));
   assert.ok(names.includes('send_message'), 'core 永远保留');
+});
+
+test('过滤：图 label（media+search）时 search_images 不被裁（缺陷4）', () => {
+  // 三连 noreply 实况：jev2 判「图」→ 只开 media → search_images 被裁，
+  // 模型对着空图库无路可走，只能编 URL。修复后「图」带 search 类。
+  const verdict = skillRouteVerdict({ label: '图', p: 0.88, margin: 1.9 });
+  const names = filterToolDefs(DEFS, verdict).map((d) => d.name);
+  assert.ok(names.includes('search_images'), 'search_images 应随「图」放行');
+  assert.ok(names.includes('identify_image'), 'media 类照旧放行');
+  assert.ok(!names.includes('memory_query'), 'memory 类照旧被裁');
 });
 
 test('过滤：all / unknown → 原样全量（保底语义）', () => {
@@ -223,8 +233,8 @@ test('PR2·skillRouteVerdict：五分类 label → 门控 verdict（纯函数，
   // 「技」→ 三个 ext 类全开（宁多勿少）
   const ji = skillRouteVerdict({ label: '技', p: 0.8, margin: 1.5 });
   assert.deepEqual(ji.cats.sort(), ['ext-fun', 'ext-info', 'ext-text']);
-  // 「图」「忆」
-  assert.deepEqual(skillRouteVerdict({ label: '图' }).cats, ['media']);
+  // 「图」「忆」——图 2026-09-28 补 search（缺陷4：要图多数要搜网图）
+  assert.deepEqual(skillRouteVerdict({ label: '图' }).cats, ['media', 'search']);
   assert.deepEqual(skillRouteVerdict({ label: '忆' }).cats, ['memory']);
   // 防御：label 未映射 / 空 → 全量保底（grammar 约束下不该出现，但兜底方向安全）
   assert.equal(skillRouteVerdict({ label: '外星文' }).need, 'all', '未知标签 → 全量');
