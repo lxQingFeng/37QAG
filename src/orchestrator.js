@@ -166,6 +166,20 @@ export function chargeSuccessfulSend(state = {}, name = '') {
   state.sendsByName[name] = (Number(state.sendsByName[name]) || 0) + 1;
 }
 
+/**
+ * 只读迷航计数（noreply 三会话诊断·会话3解药，2026-09-28）：
+ * 本轮没发出任何东西、又调了工具但全是只读（无 send_* 尝试）→ +1；
+ * 发过话、或尝试过 send_（哪怕失败——它在试着说话，不算迷航）→ 清零。
+ * 没有工具调用的轮次不计数（那是 pointedNudge/nudgeTextOnly 的地盘）。
+ */
+export function nextReadOnlyRounds(prev = 0, acceptedToolCalls = [], sentThisRound = false) {
+  if (sentThisRound) return 0;
+  const calls = Array.isArray(acceptedToolCalls) ? acceptedToolCalls : [];
+  if (!calls.length) return prev;
+  const attemptedSend = calls.some((c) => String(c?.function?.name || '').startsWith('send_'));
+  return attemptedSend ? 0 : prev + 1;
+}
+
 async function executeToolGuarded(toolDefs, ctx, name, argsRaw) {
   // 生命周期事件（阶段二）：插件/模块可观察工具调用，无需改核心。
   let _emit = null;
@@ -2359,6 +2373,11 @@ export class Orchestrator {
     // 最多提醒两次；两次都不听就兜底把它的正文发出去（api.textOnlyFallback，默认开）。
     let nudgeCount = 0;
     let lastTextOnly = '';      // 最后一段"只写了正文、没调工具"的文字（兜底发送用）
+    let readOnlyRounds = 0;     // 只读迷航计数：连续「只调查询工具、无 send_ 尝试」的轮数
+    const readOnlyNudgeRounds = (() => {
+      const raw = Number(cfg.api?.readOnlyNudgeRounds);
+      return Number.isFinite(raw) ? Math.max(0, Math.floor(raw)) : 5;   // 未配置 → 5；0 = 关
+    })();
     const toolCallBudgetState = {
       seen: new Set(), runCount: 0, totalSends: 0, sendsByName: {}
     };
@@ -2879,6 +2898,29 @@ const executedResult = { role: 'tool', tool_call_id: call.id, name, content: con
         session.finishReason = '本批回复已发送，自动结束';
         if (!session.moodTag) session.moodTag = '';
         session.autoFinishedReply = true;
+      }
+      // ── 只读迷航打断（noreply 三连诊断·会话3解药，2026-09-28）──
+      // 实测 mukjyrox 会话：12 轮全是查询类工具、0 次 send_，用户三次催促全石沉大海。
+      // 连续 N 轮（api.readOnlyNudgeRounds，默认 5）只读 → 催一次「要么发文字、要么
+      // 收尾」（复用 pointedNudge 的 user 消息框架）；催完再给 3 轮机会，仍无发送就
+      // 强制收尾（断路器，防 deadline 前空转烧轮数）。尝试过 send_（哪怕失败）不算
+      // 迷航——那是配额/下载问题，配额层已在修。
+      readOnlyRounds = nextReadOnlyRounds(readOnlyRounds, acceptedToolCalls, newSentThisRound.length > 0);
+      if (!finish && readOnlyNudgeRounds > 0 && readOnlyRounds >= readOnlyNudgeRounds) {
+        if (readOnlyRounds === readOnlyNudgeRounds) {
+          messages.push({
+            role: 'user',
+            content: '【系统提示】你已经连续多轮只调用查询类工具，群里一个字都没收到。现在二选一：立刻调用 send_message 把已有结果用一两句话告诉用户；或者不再调用任何工具，系统会结束本轮。不要再查询了。'
+          });
+          markActivity('只读迷航，催它要么说话要么收尾…');
+          console.log(`[orchestrator] ${chatKey} 只读迷航打断：连续 ${readOnlyRounds} 轮无 send_，注入收尾提示`);
+        } else if (readOnlyRounds >= readOnlyNudgeRounds + 3) {
+          session.finishReason = `连续 ${readOnlyRounds} 轮只查不发言，强制收尾（迷航断路器）`;
+          finish = true;
+          this.sessions.update(session.id);
+          this.emit('session-update', session.id);
+          console.log(`[orchestrator] ${chatKey} 只读迷航断路器触发：${readOnlyRounds} 轮无发送，强制收尾`);
+        }
       }
       // 给 UI 的简化消息流（跳过纯 tool 结果的重复展示）
     }

@@ -252,6 +252,11 @@ export const DEFAULT_CONFIG = {
     // send_message 时，补一轮「必须回复」的硬提醒（与 nudgeTextOnly 同一次数限制）。
     // 设 false 关掉这条定向提醒（nudgeTextOnly 的通用提醒不受影响）。
     pointedNudge: true,
+    // 只读迷航打断（默认 5 轮，2026-09-28 · noreply 三连诊断）：模型连续 N 轮只调
+    // 查询类工具、一次 send_ 都没有（实测 mukjyrox 会话：12 轮全只读、0 发送、用户
+    // 三次催促全石沉大海）时，注入「要么发文字、要么收尾」的硬提醒；再给 3 轮机会
+    // 仍无发送就强制收尾。0 = 关闭断路器。
+    readOnlyNudgeRounds: 5,
     // 协议提醒（默认开，2026-09-11 实测有效）：在用户提示词**最末尾**追加一句
     // "要发言就立刻调用 send_message，不打算说话就调用 finish"。
     // 实测号A（qwen3.7-flash）同一批真实会话 ×3：不加 22% 的运行整轮不调工具

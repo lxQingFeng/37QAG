@@ -30,6 +30,7 @@ import { resolveOutputMaxTokens } from '../src/llm.js';
 import {
   chargeSuccessfulSend,
   filteredToolResult,
+  nextReadOnlyRounds,
   selectSafeToolCalls,
   sendQuotaRejectReason,
   toolCallSignature
@@ -364,6 +365,28 @@ test('发送配额按真实成功发送计数：失败/preview 不占额度，�
   assert.equal(sendQuotaRejectReason(state, limits, 'web_search', '{}'), '');
   assert.equal(sendQuotaRejectReason({ totalSends: 4 }, limits, 'send_image', 'not-json'),
     '本次运行发送动作已达上限（4 次），不要再发送。');
+});
+
+test('只读迷航计数：只查不发累加，发送/发送尝试/无工具轮不计数（会话3解药）', () => {
+  const call = (name) => ({ id: name, function: { name, arguments: '{}' } });
+  const ro = [call('web_search'), call('image_lib_search')];
+  // ① 连续只读轮累加（mukjyrox 会话：12 轮全只读、0 发送）
+  let n = nextReadOnlyRounds(0, ro, false);
+  assert.equal(n, 1);
+  assert.equal(nextReadOnlyRounds(n, ro, false), 2);
+  assert.equal(nextReadOnlyRounds(4, ro, false), 5, '第 5 轮触发 nudge 阈值');
+  // ② 发出去了 → 清零
+  assert.equal(nextReadOnlyRounds(5, ro, true), 0);
+  // ③ 尝试过 send_（哪怕失败——它在试着说话）→ 清零，不算迷航
+  assert.equal(nextReadOnlyRounds(5, [call('send_image'), call('web_search')], false), 0);
+  // ④ 无工具调用的轮次不计数（pointedNudge/nudgeTextOnly 的地盘）
+  assert.equal(nextReadOnlyRounds(5, [], false), 5);
+  // ⑤ 容错：非数组按空处理
+  assert.equal(nextReadOnlyRounds(2, null, false), 2);
+});
+
+test('只读迷航断路器已播种默认配置（api.readOnlyNudgeRounds = 5，0 = 关）', () => {
+  assert.equal(DEFAULT_CONFIG.api.readOnlyNudgeRounds, 5);
 });
 
 test('模型输出预算为空时回落到 4096，小预算仍可保留', () => {
