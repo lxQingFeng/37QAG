@@ -4320,7 +4320,7 @@ async function loadMemesView() {
         <button class="btn btn-small" id="meme-import-btn" title="一次粘贴多条（内容 / 分类 | 内容 / 分类 | 内容 | 备注，也吃导出的 JSON）">⚡ 批量导入</button>
         <button class="btn btn-small" id="meme-export-btn" title="导出成 JSON（备份 / 换机器用）">导出</button>
       </div>
-      <div class="kb-gates" style="display:flex;gap:18px;flex-wrap:wrap;align-items:center;margin:0 0 8px">
+      <div class="kb-gates" id="kb-gates" data-ready="false" style="display:flex;gap:18px;flex-wrap:wrap;align-items:center;margin:0 0 8px">
         <div class="checkbox-row" style="margin:0"><input type="checkbox" id="kb-internal-on" /><label for="kb-internal-on">脑内闪过（内部梗自动联想）</label></div>
         <div class="checkbox-row" style="margin:0"><input type="checkbox" id="kb-images-on" /><label for="kb-images-on">形象图自动提示（问到长什么样时）</label></div>
         <span id="kb-gates-hint" class="muted" style="font-size:11px"></span>
@@ -4357,7 +4357,10 @@ async function loadMemesView() {
     };
     internalEl?.addEventListener('change', () => saveGate('internal', internalEl.checked));
     imagesEl?.addEventListener('change', () => saveGate('images', imagesEl.checked));
-  } catch { /* 配置读不到时开关维持默认勾选，不阻塞页面 */ }
+  } catch { /* 配置读不到时开关维持默认勾选，不阻塞页面 */ } finally {
+    // 读取/绑定完成后才允许 UI 测试检查初值，避免异步加载竞态。
+    box.querySelector('#kb-gates')?.setAttribute('data-ready', '1');
+  }
 
   function renderCats(cats) {
     catsEl.innerHTML = cats.map((c) => {

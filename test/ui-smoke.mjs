@@ -265,7 +265,7 @@ test('主题：导入 .json 主题文件 → 立即应用且出现在清单', as
 // ── 7. 知识库死键开关（2026-09-28 接线修复）───────────────────────────
 test('知识库：internal/images 总开关 → /api/config 落盘且可还原（死键接线）', async () => {
   await page.locator('.tab[data-tab="memes"]').click();
-  await page.waitForSelector('#kb-internal-on', { timeout: 5000 });
+  await page.waitForSelector('#kb-gates[data-ready="1"]', { timeout: 5000 });
   // 初始默认全开（knowledge.internal.enabled / knowledge.images.enabled 均为 true）
   assert.equal(await page.locator('#kb-internal-on').isChecked(), true, 'internal 开关默认应开');
   assert.equal(await page.locator('#kb-images-on').isChecked(), true, 'images 开关默认应开');
