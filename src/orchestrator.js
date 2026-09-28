@@ -1609,7 +1609,18 @@ export class Orchestrator {
     let toolGateVerdict = null;
     if (toolGateMode !== 'off' && !gateHype) {
       const gateText = String(session.triggerText || '').slice(0, 400);
+      // 缺陷1修复（noreply 三连诊断）：私聊/被点名不做「闲」级裁剪——
+      // 私聊每条消息等效被点名（三连 noreply 全发生在 private:），由 classifyToolNeed
+      // 的 kind='private' 逃生门直接全量；群聊则以 @ 召唤为准接 atMe 逃生门。
+      // 接线后这两类消息 jev2 连问都不用问，不会再被 0.8B 判成「闲」裁掉搜索工具。
+      const gateAtMe = (triggerEntries || []).some((e) => isAtMe(String(e?.text ?? ''), {
+        selfNickname: `${cfg.persona?.selfNickname || ''}、${this.onebot.selfNickname || ''}`,
+        botName: cfg.persona?.botName || '',
+        selfId: this.onebot.selfId || cfg.onebot?.selfId || ''
+      }));
       toolGateVerdict = classifyToolNeed(gateText, {
+        atMe: gateAtMe,
+        kind,
         hasImage: (session.wakeImages || session.triggerImages || 0) > 0
       });
       // 规则判不准的短消息：'jev' 档问二分类（TOOL/CHAT）；'jev2' 档问五分类

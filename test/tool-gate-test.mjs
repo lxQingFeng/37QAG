@@ -32,6 +32,18 @@ test('规则：@机器人 → 全量（被请求强信号）', () => {
   assert.equal(classifyToolNeed('嗯', { atMe: true }).need, 'all');
 });
 
+test('缺陷1修复：私聊不做「闲」级裁剪 → 全量（哪怕文本就是纯闲聊样）', () => {
+  // 三连 noreply 的三个触发句全发生在 private:，却都被裁到 18 个常驻工具。
+  for (const t of ['你怎么不发！', '666', '那你快点', '哈哈哈哈']) {
+    const v = classifyToolNeed(t, { kind: 'private' });
+    assert.equal(v.need, 'all', `私聊「${t}」应全量`);
+    assert.equal(v.reason, 'private-chat');
+    // 私聊全量意味着 jev2 不会再被问（need!=='unknown' 直接短路）。
+  }
+  // 群聊不受影响：纯闲聊形态仍裁（省 token 的主战场在群聊）。
+  assert.equal(classifyToolNeed('哈哈哈哈', { kind: 'group' }).need, 'none');
+});
+
 test('规则：带图 → 至少开 media', () => {
   const v = classifyToolNeed('看看这个', { hasImage: true });
   assert.equal(v.need, 'cats');
@@ -281,4 +293,17 @@ test('PR2·配置播种：toolGate 默认 rules 不变；skillRouteGate 进默�
   const fs = await import('node:fs');
   const src = fs.readFileSync(new URL('../src/config.js', import.meta.url), 'utf8');
   assert.match(src, /'jev2'/, 'toolGate 注释应说明 jev2 档');
+});
+
+test('缺陷1修复：orchestrator 调用处已接线 atMe/kind（逃生门不再悬空）', async () => {
+  // 诊断报告关键发现：ctx.atMe → need='all' 的逃生门**一直存在但从未接线**。
+  // 按仓库先例（防文档漂移：直接读源码断言）锚定调用处确实传了 atMe 与 kind。
+  const fs = await import('node:fs');
+  const src = fs.readFileSync(new URL('../src/orchestrator.js', import.meta.url), 'utf8');
+  const callAt = src.indexOf('classifyToolNeed(gateText');
+  assert.ok(callAt > 0, 'classifyToolNeed 调用处应存在');
+  const callBlock = src.slice(callAt, callAt + 400);
+  assert.match(callBlock, /atMe:\s*gateAtMe/, '调用处应传 atMe（@ 召唤）');
+  assert.match(callBlock, /kind,/, '调用处应传 kind（私聊逃生门）');
+  assert.ok(src.indexOf('const gateAtMe') < callAt, 'gateAtMe 应在调用前计算');
 });

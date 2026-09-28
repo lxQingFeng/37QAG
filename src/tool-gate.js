@@ -60,7 +60,7 @@ const CHAT_ONLY_RE = Object.freeze([
 /**
  * 规则层分类（纯函数，零成本）。
  * @param {string} text 本轮用户侧聚合文本
- * @param {{ atMe?: boolean, hasImage?: boolean, tier?: number }} [ctx]
+ * @param {{ atMe?: boolean, kind?: 'private'|'group', hasImage?: boolean, tier?: number }} [ctx]
  * @returns {{ need: 'none'|'all'|'cats', cats: string[], reason: string }}
  *   need='none'  → 只保留常驻（省 search/media/memory）
  *   need='cats'  → 常驻 + cats 里列的类别
@@ -70,6 +70,10 @@ export function classifyToolNeed(text = '', ctx = {}) {
   const raw = String(text || '').trim();
   // @机器人 / 被点名：宁可全量（这是"被请求"的强信号）
   if (ctx.atMe) return { need: 'all', cats: [], reason: 'at-me' };
+  // 私聊（缺陷1修复，noreply 三连诊断 2026-09-28）：私聊每条消息都等效点名，
+  // 却曾走了最激进的「闲」级裁剪——jev2 把「你怎么不发！/666/那你快点」判成闲聊、
+  // 裁掉 search 类工具，是三连 noreply 的第一环。私聊不做闲级裁剪，直接全量。
+  if (ctx.kind === 'private') return { need: 'all', cats: [], reason: 'private-chat' };
   // 消息里带图：媒体工具常驻（识图是高频需求）
   if (ctx.hasImage) return { need: 'cats', cats: ['media'], reason: 'has-image' };
   if (!raw) return { need: 'all', cats: [], reason: 'empty-input' };
